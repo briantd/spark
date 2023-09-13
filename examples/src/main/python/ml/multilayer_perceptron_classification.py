@@ -49,7 +49,7 @@ if __name__ == "__main__":
     result = model.transform(test)
     predictionAndLabels = result.select("prediction", "label")
     evaluator = MulticlassClassificationEvaluator(metricName="precision")
-    print("Precision:" + str(evaluator.evaluate(predictionAndLabels)))
+    print(f"Precision:{str(evaluator.evaluate(predictionAndLabels))}")
     # $example off$
 
     sc.stop()

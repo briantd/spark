@@ -253,15 +253,11 @@ class MulticlassMetrics(JavaModelWrapper):
         Returns f-measure or f-measure for a given label (category) if specified.
         """
         if beta is None:
-            if label is None:
-                return self.call("fMeasure")
-            else:
-                return self.call("fMeasure", label)
+            return self.call("fMeasure") if label is None else self.call("fMeasure", label)
+        if label is None:
+            raise Exception("If the beta parameter is specified, label can not be none")
         else:
-            if label is None:
-                raise Exception("If the beta parameter is specified, label can not be none")
-            else:
-                return self.call("fMeasure", label, beta)
+            return self.call("fMeasure", label, beta)
 
     @property
     @since('1.4.0')

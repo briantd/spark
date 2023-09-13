@@ -59,14 +59,11 @@ class Estimator(Params):
         :returns: fitted model(s)
         """
         if params is None:
-            params = dict()
+            params = {}
         if isinstance(params, (list, tuple)):
             return [self.fit(dataset, paramMap) for paramMap in params]
         elif isinstance(params, dict):
-            if params:
-                return self.copy(params)._fit(dataset)
-            else:
-                return self._fit(dataset)
+            return self.copy(params)._fit(dataset) if params else self._fit(dataset)
         else:
             raise ValueError("Params must be either a param map or a list/tuple of param maps, "
                              "but got %s." % type(params))
@@ -106,14 +103,13 @@ class Transformer(Params):
         :returns: transformed dataset
         """
         if params is None:
-            params = dict()
-        if isinstance(params, dict):
-            if params:
-                return self.copy(params,)._transform(dataset)
-            else:
-                return self._transform(dataset)
+            params = {}
+        if not isinstance(params, dict):
+            raise ValueError(f"Params must be either a param map but got {type(params)}.")
+        if params:
+            return self.copy(params,)._transform(dataset)
         else:
-            raise ValueError("Params must be either a param map but got %s." % type(params))
+            return self._transform(dataset)
 
 
 @inherit_doc
@@ -196,9 +192,8 @@ class Pipeline(Estimator):
     def _fit(self, dataset):
         stages = self.getStages()
         for stage in stages:
-            if not (isinstance(stage, Estimator) or isinstance(stage, Transformer)):
-                raise TypeError(
-                    "Cannot recognize a pipeline stage of type %s." % type(stage))
+            if not (isinstance(stage, (Estimator, Transformer))):
+                raise TypeError(f"Cannot recognize a pipeline stage of type {type(stage)}.")
         indexOfLastEstimator = -1
         for i, stage in enumerate(stages):
             if isinstance(stage, Estimator):
@@ -227,7 +222,7 @@ class Pipeline(Estimator):
         :returns: new instance
         """
         if extra is None:
-            extra = dict()
+            extra = {}
         that = Params.copy(self, extra)
         stages = [stage.copy(extra) for stage in that.getStages()]
         return that.setStages(stages)
@@ -259,6 +254,6 @@ class PipelineModel(Model):
         :returns: new instance
         """
         if extra is None:
-            extra = dict()
+            extra = {}
         stages = [stage.copy(extra) for stage in self.stages]
         return PipelineModel(stages)

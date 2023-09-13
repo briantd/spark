@@ -31,9 +31,7 @@ __all__ = ['FlumeUtils', 'utf8_decoder']
 
 def utf8_decoder(s):
     """ Decode the unicode as UTF-8 """
-    if s is None:
-        return None
-    return s.decode('utf-8')
+    return None if s is None else s.decode('utf-8')
 
 
 class FlumeUtils(object):

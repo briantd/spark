@@ -35,10 +35,7 @@ def to_str(value):
     """
     A wrapper over str(), but convert bool values to lower case string
     """
-    if isinstance(value, bool):
-        return str(value).lower()
-    else:
-        return str(value)
+    return str(value).lower() if isinstance(value, bool) else str(value)
 
 
 class DataFrameReader(object):
@@ -129,14 +126,13 @@ class DataFrameReader(object):
         if schema is not None:
             self.schema(schema)
         self.options(**options)
-        if path is not None:
-            if type(path) == list:
-                return self._df(
-                    self._jreader.load(self._sqlContext._sc._jvm.PythonUtils.toSeq(path)))
-            else:
-                return self._df(self._jreader.load(path))
-        else:
+        if path is None:
             return self._df(self._jreader.load())
+        if type(path) == list:
+            return self._df(
+                self._jreader.load(self._sqlContext._sc._jvm.PythonUtils.toSeq(path)))
+        else:
+            return self._df(self._jreader.load(path))
 
     @since(1.4)
     def json(self, path, schema=None):
@@ -263,7 +259,7 @@ class DataFrameReader(object):
         :return: a DataFrame
         """
         if properties is None:
-            properties = dict()
+            properties = {}
         jprop = JavaClass("java.util.Properties", self._sqlContext._sc._gateway._gateway_client)()
         for k in properties:
             jprop.setProperty(k, properties[k])
@@ -513,7 +509,7 @@ class DataFrameWriter(object):
                            "user" and "password" property should be included.
         """
         if properties is None:
-            properties = dict()
+            properties = {}
         jprop = JavaClass("java.util.Properties", self._sqlContext._sc._gateway._gateway_client)()
         for k in properties:
             jprop.setProperty(k, properties[k])

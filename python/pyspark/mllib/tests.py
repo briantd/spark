@@ -1101,11 +1101,15 @@ class StreamingKMeansTest(MLLibStreamingTestCase):
         rng = random.RandomState(seed)
 
         # Generate centers.
-        centers = [rng.randn(d) for i in range(k)]
+        centers = [rng.randn(d) for _ in range(k)]
 
-        return centers, [[Vectors.dense(centers[j % k] + r * rng.randn(d))
-                          for j in range(numPoints)]
-                         for i in range(batches)]
+        return centers, [
+            [
+                Vectors.dense(centers[j % k] + r * rng.randn(d))
+                for j in range(numPoints)
+            ]
+            for _ in range(batches)
+        ]
 
     def test_trainOn_model(self):
         """Test the model on toy data with four clusters."""

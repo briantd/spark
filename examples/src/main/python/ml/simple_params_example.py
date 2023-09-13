@@ -92,7 +92,8 @@ if __name__ == "__main__":
         .collect()
 
     for row in result:
-        print("features=%s,label=%s -> prob=%s, prediction=%s"
-              % (row.features, row.label, row.myProbability, row.prediction))
+        print(
+            f"features={row.features},label={row.label} -> prob={row.myProbability}, prediction={row.prediction}"
+        )
 
     sc.stop()

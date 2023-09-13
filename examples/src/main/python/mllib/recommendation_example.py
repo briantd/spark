@@ -18,6 +18,7 @@
 """
 Collaborative Filtering Classification Example.
 """
+
 from __future__ import print_function
 
 import sys
@@ -46,7 +47,7 @@ if __name__ == "__main__":
     predictions = model.predictAll(testdata).map(lambda r: ((r[0], r[1]), r[2]))
     ratesAndPreds = ratings.map(lambda r: ((r[0], r[1]), r[2])).join(predictions)
     MSE = ratesAndPreds.map(lambda r: (r[1][0] - r[1][1])**2).mean()
-    print("Mean Squared Error = " + str(MSE))
+    print(f"Mean Squared Error = {str(MSE)}")
 
     # Save and load model
     model.save(sc, "target/tmp/myCollaborativeFilter")

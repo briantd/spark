@@ -226,7 +226,7 @@ class ALS(object):
         elif isinstance(first, (tuple, list)):
             ratings = ratings.map(lambda x: Rating(*x))
         else:
-            raise TypeError("Expect a Rating or a tuple/list, but got %s." % type(first))
+            raise TypeError(f"Expect a Rating or a tuple/list, but got {type(first)}.")
         return ratings
 
     @classmethod

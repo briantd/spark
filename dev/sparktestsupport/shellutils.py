@@ -33,8 +33,7 @@ else:
             raise ValueError('stdout argument not allowed, it will be overridden.')
         process = subprocess.Popen(stdout=subprocess.PIPE, *popenargs, **kwargs)
         output, unused_err = process.communicate()
-        retcode = process.poll()
-        if retcode:
+        if retcode := process.poll():
             cmd = kwargs.get("args")
             if cmd is None:
                 cmd = popenargs[0]
@@ -43,8 +42,7 @@ else:
 
     # backported from subprocess module in Python 2.7
     def subprocess_check_call(*popenargs, **kwargs):
-        retcode = call(*popenargs, **kwargs)
-        if retcode:
+        if retcode := call(*popenargs, **kwargs):
             cmd = kwargs.get("args")
             if cmd is None:
                 cmd = popenargs[0]
@@ -101,9 +99,7 @@ def which(program):
     From: http://stackoverflow.com/a/377028
     """
 
-    fpath = os.path.split(program)[0]
-
-    if fpath:
+    if fpath := os.path.split(program)[0]:
         if is_exe(program):
             return program
     else:

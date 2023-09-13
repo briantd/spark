@@ -138,9 +138,11 @@ class KMeansModel(Saveable, Loader):
         Return the K-means cost (sum of squared distances of points to
         their nearest center) for this model on the given data.
         """
-        cost = callMLlibFunc("computeCostKmeansModel", rdd.map(_convert_to_vector),
-                             [_convert_to_vector(c) for c in self.centers])
-        return cost
+        return callMLlibFunc(
+            "computeCostKmeansModel",
+            rdd.map(_convert_to_vector),
+            [_convert_to_vector(c) for c in self.centers],
+        )
 
     @since('1.4.0')
     def save(self, sc, path):
@@ -177,8 +179,13 @@ class KMeans(object):
         clusterInitialModel = []
         if initialModel is not None:
             if not isinstance(initialModel, KMeansModel):
-                raise Exception("initialModel is of "+str(type(initialModel))+". It needs "
-                                "to be of <type 'KMeansModel'>")
+                raise Exception(
+                    (
+                        f"initialModel is of {str(type(initialModel))}"
+                        + ". It needs "
+                        "to be of <type 'KMeansModel'>"
+                    )
+                )
             clusterInitialModel = [_convert_to_vector(c) for c in initialModel.clusterCenters]
         model = callMLlibFunc("trainKMeansModel", rdd.map(_convert_to_vector), k, maxIterations,
                               runs, initializationMode, seed, initializationSteps, epsilon,
@@ -284,8 +291,7 @@ class GaussianMixtureModel(JavaModelWrapper, JavaSaveable, JavaLoader):
         :return:     cluster_labels. RDD of cluster labels.
         """
         if isinstance(x, RDD):
-            cluster_labels = self.predictSoft(x).map(lambda z: z.index(max(z)))
-            return cluster_labels
+            return self.predictSoft(x).map(lambda z: z.index(max(z)))
         else:
             raise TypeError("x should be represented by an RDD, "
                             "but got %s." % type(x))
@@ -344,8 +350,9 @@ class GaussianMixture(object):
         initialModelSigma = None
         if initialModel is not None:
             if initialModel.k != k:
-                raise Exception("Mismatched cluster count, initialModel.k = %s, however k = %s"
-                                % (initialModel.k, k))
+                raise Exception(
+                    f"Mismatched cluster count, initialModel.k = {initialModel.k}, however k = {k}"
+                )
             initialModelWeights = initialModel.weights
             initialModelMu = [initialModel.gaussians[i].mu for i in range(initialModel.k)]
             initialModelSigma = [initialModel.gaussians[i].sigma for i in range(initialModel.k)]
@@ -545,12 +552,11 @@ class StreamingKMeansModel(KMeansModel):
                          points and if batches, it is used as it is.
         """
         if not isinstance(data, RDD):
-            raise TypeError("Data should be of an RDD, got %s." % type(data))
+            raise TypeError(f"Data should be of an RDD, got {type(data)}.")
         data = data.map(_convert_to_vector)
         decayFactor = float(decayFactor)
         if timeUnit not in ["batches", "points"]:
-            raise ValueError(
-                "timeUnit should be 'batches' or 'points', got %s." % timeUnit)
+            raise ValueError(f"timeUnit should be 'batches' or 'points', got {timeUnit}.")
         vectorCenters = [_convert_to_vector(center) for center in self.centers]
         updatedModel = callMLlibFunc(
             "updateStreamingKMeansModel", vectorCenters, self._clusterWeights,
@@ -580,8 +586,7 @@ class StreamingKMeans(object):
         self._k = k
         self._decayFactor = decayFactor
         if timeUnit not in ["batches", "points"]:
-            raise ValueError(
-                "timeUnit should be 'batches' or 'points', got %s." % timeUnit)
+            raise ValueError(f"timeUnit should be 'batches' or 'points', got {timeUnit}.")
         self._timeUnit = timeUnit
         self._model = None
 
@@ -741,11 +746,11 @@ class LDAModel(JavaModelWrapper, JavaSaveable, Loader):
             (term indices, term weights in topic).
             Each topic's terms are sorted in order of decreasing weight.
         """
-        if maxTermsPerTopic is None:
-            topics = self.call("describeTopics")
-        else:
-            topics = self.call("describeTopics", maxTermsPerTopic)
-        return topics
+        return (
+            self.call("describeTopics")
+            if maxTermsPerTopic is None
+            else self.call("describeTopics", maxTermsPerTopic)
+        )
 
     @classmethod
     @since('1.5.0')
@@ -756,9 +761,9 @@ class LDAModel(JavaModelWrapper, JavaSaveable, Loader):
         :param path: str, path to where the model is stored.
         """
         if not isinstance(sc, SparkContext):
-            raise TypeError("sc should be a SparkContext, got type %s" % type(sc))
+            raise TypeError(f"sc should be a SparkContext, got type {type(sc)}")
         if not isinstance(path, basestring):
-            raise TypeError("path should be a basestring, got type %s" % type(path))
+            raise TypeError(f"path should be a basestring, got type {type(path)}")
         model = callMLlibFunc("loadLDAModel", sc, path)
         return LDAModel(model)
 

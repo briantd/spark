@@ -78,7 +78,7 @@ def identify_changed_files_from_git_commits(patch_sha, target_branch=None, targe
         raise AttributeError("must specify either target_branch or target_ref, not both")
     if target_branch is not None:
         diff_target = target_branch
-        run_cmd(['git', 'fetch', 'origin', str(target_branch+':'+target_branch)])
+        run_cmd(['git', 'fetch', 'origin', str(diff_target + ':' + diff_target)])
     else:
         diff_target = target_ref
     raw_output = subprocess.check_output(['git', 'diff', '--name-only', patch_sha, diff_target],
@@ -90,7 +90,7 @@ def identify_changed_files_from_git_commits(patch_sha, target_branch=None, targe
 def setup_test_environ(environ):
     print("[info] Setup the following environment variables for tests: ")
     for (k, v) in environ.items():
-        print("%s=%s" % (k, v))
+        print(f"{k}={v}")
         os.environ[k] = v
 
 
@@ -226,15 +226,13 @@ def build_spark_documentation():
 
     os.chdir(os.path.join(SPARK_HOME, "docs"))
 
-    jekyll_bin = which("jekyll")
+    if jekyll_bin := which("jekyll"):
+        run_cmd([jekyll_bin, "build"])
 
-    if not jekyll_bin:
+    else:
         print("[error] Cannot find a version of `jekyll` on the system; please",
               " install one and retry to build documentation.")
         sys.exit(int(os.environ.get("CURRENT_BLOCK", 255)))
-    else:
-        run_cmd([jekyll_bin, "build"])
-
     os.chdir(SPARK_HOME)
 
 
@@ -259,8 +257,8 @@ def exec_maven(mvn_args=()):
     in and returns the subprocess for any further processing"""
 
     zinc_port = get_zinc_port()
-    os.environ["ZINC_PORT"] = "%s" % zinc_port
-    zinc_flag = "-DzincPort=%s" % zinc_port
+    os.environ["ZINC_PORT"] = f"{zinc_port}"
+    zinc_flag = f"-DzincPort={zinc_port}"
     flags = [os.path.join(SPARK_HOME, "build", "mvn"), "--force", zinc_flag]
     run_cmd(flags + mvn_args)
     kill_zinc_on_port(zinc_port)
@@ -310,10 +308,9 @@ def get_hadoop_profiles(hadoop_version):
 
     if hadoop_version in sbt_maven_hadoop_profiles:
         return sbt_maven_hadoop_profiles[hadoop_version]
-    else:
-        print("[error] Could not find", hadoop_version, "in the list. Valid options",
-              " are", sbt_maven_hadoop_profiles.keys())
-        sys.exit(int(os.environ.get("CURRENT_BLOCK", 255)))
+    print("[error] Could not find", hadoop_version, "in the list. Valid options",
+          " are", sbt_maven_hadoop_profiles.keys())
+    sys.exit(int(os.environ.get("CURRENT_BLOCK", 255)))
 
 
 def build_spark_maven(hadoop_version):
@@ -415,7 +412,7 @@ def run_python_tests(test_modules, parallelism):
 
     command = [os.path.join(SPARK_HOME, "python", "run-tests")]
     if test_modules != [modules.root]:
-        command.append("--modules=%s" % ','.join(m.name for m in test_modules))
+        command.append(f"--modules={','.join(m.name for m in test_modules)}")
     command.append("--parallelism=%i" % parallelism)
     run_cmd(command)
 
@@ -440,7 +437,7 @@ def parse_opts():
 
     (opts, args) = parser.parse_args()
     if args:
-        parser.error("Unsupported arguments: %s" % ' '.join(args))
+        parser.error(f"Unsupported arguments: {' '.join(args)}")
     if opts.parallelism < 1:
         parser.error("Parallelism cannot be less than 1")
     return opts
@@ -516,7 +513,7 @@ def main():
     # module. So here we should use changed_modules rather than test_modules.
     test_environ = {}
     for m in changed_modules:
-        test_environ.update(m.environ)
+        test_environ |= m.environ
     setup_test_environ(test_environ)
 
     test_modules = determine_modules_to_test(changed_modules)
@@ -550,8 +547,9 @@ def main():
     # run the test suites
     run_scala_tests(build_tool, hadoop_version, test_modules, excluded_tags)
 
-    modules_with_python_tests = [m for m in test_modules if m.python_test_goals]
-    if modules_with_python_tests:
+    if modules_with_python_tests := [
+        m for m in test_modules if m.python_test_goals
+    ]:
         run_python_tests(modules_with_python_tests, opts.parallelism)
     if any(m.should_run_r_tests for m in test_modules):
         run_sparkr_tests()
@@ -559,8 +557,7 @@ def main():
 
 def _test():
     import doctest
-    failure_count = doctest.testmod()[0]
-    if failure_count:
+    if failure_count := doctest.testmod()[0]:
         exit(-1)
 
 if __name__ == "__main__":

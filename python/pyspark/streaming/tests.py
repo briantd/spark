@@ -148,11 +148,7 @@ class PySparkStreamingTestCase(unittest.TestCase):
         input_stream2 = self.ssc.queueStream(input2) if input2 is not None else None
 
         # Apply test function to stream.
-        if input2:
-            stream = func(input_stream, input_stream2)
-        else:
-            stream = func(input_stream)
-
+        stream = func(input_stream, input_stream2) if input2 else func(input_stream)
         result = self._collect(stream, len(expected))
         if sort:
             self._sort_result_based_on_key(result)
@@ -862,7 +858,7 @@ class CheckpointTests(unittest.TestCase):
 
     def test_get_or_create_and_get_active_or_create(self):
         inputd = tempfile.mkdtemp()
-        outputd = tempfile.mkdtemp() + "/"
+        outputd = f"{tempfile.mkdtemp()}/"
 
         def updater(vs, s):
             return sum(vs, s or 0)
@@ -873,7 +869,7 @@ class CheckpointTests(unittest.TestCase):
             ssc = StreamingContext(sc, 0.5)
             dstream = ssc.textFileStream(inputd).map(lambda x: (x, 1))
             wc = dstream.updateStateByKey(updater)
-            wc.map(lambda x: "%s,%d" % x).saveAsTextFiles(outputd + "test")
+            wc.map(lambda x: "%s,%d" % x).saveAsTextFiles(f"{outputd}test")
             wc.checkpoint(.5)
             self.setupCalled = True
             return ssc
@@ -1355,9 +1351,8 @@ class FlumePollingStreamTests(PySparkStreamingTestCase):
                 attempt += 1
                 if attempt >= self.maxAttempts:
                     raise
-                else:
-                    import traceback
-                    traceback.print_exc()
+                import traceback
+                traceback.print_exc()
 
     def _testFlumePolling(self):
         try:
@@ -1406,7 +1401,9 @@ class MQTTStreamTests(PySparkStreamingTestCase):
 
     def _startContext(self, topic):
         # Start the StreamingContext and also collect the result
-        stream = MQTTUtils.createStream(self.ssc, "tcp://" + self._MQTTTestUtils.brokerUri(), topic)
+        stream = MQTTUtils.createStream(
+            self.ssc, f"tcp://{self._MQTTTestUtils.brokerUri()}", topic
+        )
         result = []
 
         def getOutput(_, rdd):
@@ -1461,15 +1458,15 @@ class KinesisStreamTests(PySparkStreamingTestCase):
     def test_kinesis_stream(self):
         if not are_kinesis_tests_enabled:
             sys.stderr.write(
-                "Skipped test_kinesis_stream (enable by setting environment variable %s=1"
-                % kinesis_test_environ_var)
+                f"Skipped test_kinesis_stream (enable by setting environment variable {kinesis_test_environ_var}=1"
+            )
             return
 
         import random
         kinesisAppName = ("KinesisStreamTests-%d" % abs(random.randint(0, 10000000)))
         kinesisTestUtilsClz = \
-            self.sc._jvm.java.lang.Thread.currentThread().getContextClassLoader() \
-                .loadClass("org.apache.spark.streaming.kinesis.KinesisTestUtils")
+                self.sc._jvm.java.lang.Thread.currentThread().getContextClassLoader() \
+                    .loadClass("org.apache.spark.streaming.kinesis.KinesisTestUtils")
         kinesisTestUtils = kinesisTestUtilsClz.newInstance()
         try:
             kinesisTestUtils.createStream()
@@ -1489,8 +1486,8 @@ class KinesisStreamTests(PySparkStreamingTestCase):
             stream.foreachRDD(get_output)
             self.ssc.start()
 
-            testData = [i for i in range(1, 11)]
-            expectedOutput = set([str(i) for i in testData])
+            testData = list(range(1, 11))
+            expectedOutput = {str(i) for i in testData}
             start_time = time.time()
             while time.time() - start_time < 120:
                 kinesisTestUtils.pushData(testData)
@@ -1513,8 +1510,9 @@ class KinesisStreamTests(PySparkStreamingTestCase):
 def search_jar(dir, name_prefix):
     # We should ignore the following jars
     ignored_jar_suffixes = ("javadoc.jar", "sources.jar", "test-sources.jar", "tests.jar")
-    jars = (glob.glob(os.path.join(dir, "target/scala-*/" + name_prefix + "-*.jar")) +  # sbt build
-            glob.glob(os.path.join(dir, "target/" + name_prefix + "_*.jar")))  # maven build
+    jars = glob.glob(
+        os.path.join(dir, f"target/scala-*/{name_prefix}-*.jar")
+    ) + glob.glob(os.path.join(dir, f"target/{name_prefix}_*.jar"))
     return [jar for jar in jars if not jar.endswith(ignored_jar_suffixes)]
 
 
@@ -1524,10 +1522,13 @@ def search_kafka_assembly_jar():
     jars = search_jar(kafka_assembly_dir, "spark-streaming-kafka-assembly")
     if not jars:
         raise Exception(
-            ("Failed to find Spark Streaming kafka assembly jar in %s. " % kafka_assembly_dir) +
-            "You need to build Spark with "
-            "'build/sbt assembly/assembly streaming-kafka-assembly/assembly' or "
-            "'build/mvn package' before running this test.")
+            (
+                f"Failed to find Spark Streaming kafka assembly jar in {kafka_assembly_dir}. "
+                + "You need to build Spark with "
+                "'build/sbt assembly/assembly streaming-kafka-assembly/assembly' or "
+                "'build/mvn package' before running this test."
+            )
+        )
     elif len(jars) > 1:
         raise Exception(("Found multiple Spark Streaming Kafka assembly JARs: %s; please "
                          "remove all but one") % (", ".join(jars)))
@@ -1541,10 +1542,13 @@ def search_flume_assembly_jar():
     jars = search_jar(flume_assembly_dir, "spark-streaming-flume-assembly")
     if not jars:
         raise Exception(
-            ("Failed to find Spark Streaming Flume assembly jar in %s. " % flume_assembly_dir) +
-            "You need to build Spark with "
-            "'build/sbt assembly/assembly streaming-flume-assembly/assembly' or "
-            "'build/mvn package' before running this test.")
+            (
+                f"Failed to find Spark Streaming Flume assembly jar in {flume_assembly_dir}. "
+                + "You need to build Spark with "
+                "'build/sbt assembly/assembly streaming-flume-assembly/assembly' or "
+                "'build/mvn package' before running this test."
+            )
+        )
     elif len(jars) > 1:
         raise Exception(("Found multiple Spark Streaming Flume assembly JARs: %s; please "
                         "remove all but one") % (", ".join(jars)))
@@ -1558,10 +1562,13 @@ def search_mqtt_assembly_jar():
     jars = search_jar(mqtt_assembly_dir, "spark-streaming-mqtt-assembly")
     if not jars:
         raise Exception(
-            ("Failed to find Spark Streaming MQTT assembly jar in %s. " % mqtt_assembly_dir) +
-            "You need to build Spark with "
-            "'build/sbt assembly/assembly streaming-mqtt-assembly/assembly' or "
-            "'build/mvn package' before running this test")
+            (
+                f"Failed to find Spark Streaming MQTT assembly jar in {mqtt_assembly_dir}. "
+                + "You need to build Spark with "
+                "'build/sbt assembly/assembly streaming-mqtt-assembly/assembly' or "
+                "'build/mvn package' before running this test"
+            )
+        )
     elif len(jars) > 1:
         raise Exception(("Found multiple Spark Streaming MQTT assembly JARs: %s; please "
                          "remove all but one") % (", ".join(jars)))
@@ -1576,9 +1583,12 @@ def search_mqtt_test_jar():
         os.path.join(mqtt_test_dir, "target/scala-*/spark-streaming-mqtt-test-*.jar"))
     if not jars:
         raise Exception(
-            ("Failed to find Spark Streaming MQTT test jar in %s. " % mqtt_test_dir) +
-            "You need to build Spark with "
-            "'build/sbt assembly/assembly streaming-mqtt/test:assembly'")
+            (
+                f"Failed to find Spark Streaming MQTT test jar in {mqtt_test_dir}. "
+                + "You need to build Spark with "
+                "'build/sbt assembly/assembly streaming-mqtt/test:assembly'"
+            )
+        )
     elif len(jars) > 1:
         raise Exception(("Found multiple Spark Streaming MQTT test JARs: %s; please "
                          "remove all but one") % (", ".join(jars)))
@@ -1612,21 +1622,19 @@ if __name__ == "__main__":
 
     if kinesis_asl_assembly_jar is None:
         kinesis_jar_present = False
-        jars = "%s,%s,%s,%s" % (kafka_assembly_jar, flume_assembly_jar, mqtt_assembly_jar,
-                                mqtt_test_jar)
+        jars = f"{kafka_assembly_jar},{flume_assembly_jar},{mqtt_assembly_jar},{mqtt_test_jar}"
     else:
         kinesis_jar_present = True
-        jars = "%s,%s,%s,%s,%s" % (kafka_assembly_jar, flume_assembly_jar, mqtt_assembly_jar,
-                                   mqtt_test_jar, kinesis_asl_assembly_jar)
+        jars = f"{kafka_assembly_jar},{flume_assembly_jar},{mqtt_assembly_jar},{mqtt_test_jar},{kinesis_asl_assembly_jar}"
 
-    os.environ["PYSPARK_SUBMIT_ARGS"] = "--jars %s pyspark-shell" % jars
+    os.environ["PYSPARK_SUBMIT_ARGS"] = f"--jars {jars} pyspark-shell"
     testcases = [BasicOperationTests, WindowFunctionTests, StreamingContextTests, CheckpointTests,
                  KafkaStreamTests, FlumeStreamTests, FlumePollingStreamTests, MQTTStreamTests,
                  StreamingListenerTests]
 
-    if kinesis_jar_present is True:
+    if kinesis_jar_present:
         testcases.append(KinesisStreamTests)
-    elif are_kinesis_tests_enabled is False:
+    elif not are_kinesis_tests_enabled:
         sys.stderr.write("Skipping all Kinesis Python tests as the optional Kinesis project was "
                          "not compiled into a JAR. To run these tests, "
                          "you need to build Spark with 'build/sbt -Pkinesis-asl assembly/assembly "
@@ -1634,11 +1642,13 @@ if __name__ == "__main__":
                          "'build/mvn -Pkinesis-asl package' before running this test.")
     else:
         raise Exception(
-            ("Failed to find Spark Streaming Kinesis assembly jar in %s. "
-             % kinesis_asl_assembly_dir) +
-            "You need to build Spark with 'build/sbt -Pkinesis-asl "
-            "assembly/assembly streaming-kinesis-asl-assembly/assembly'"
-            "or 'build/mvn -Pkinesis-asl package' before running this test.")
+            (
+                f"Failed to find Spark Streaming Kinesis assembly jar in {kinesis_asl_assembly_dir}. "
+                + "You need to build Spark with 'build/sbt -Pkinesis-asl "
+                "assembly/assembly streaming-kinesis-asl-assembly/assembly'"
+                "or 'build/mvn -Pkinesis-asl package' before running this test."
+            )
+        )
 
     sys.stderr.write("Running tests: %s \n" % (str(testcases)))
     failed = False
@@ -1647,10 +1657,8 @@ if __name__ == "__main__":
         tests = unittest.TestLoader().loadTestsFromTestCase(testcase)
         if xmlrunner:
             result = xmlrunner.XMLTestRunner(output='target/test-reports', verbosity=3).run(tests)
-            if not result.wasSuccessful():
-                failed = True
         else:
             result = unittest.TextTestRunner(verbosity=3).run(tests)
-            if not result.wasSuccessful():
-                failed = True
+        if not result.wasSuccessful():
+            failed = True
     sys.exit(failed)

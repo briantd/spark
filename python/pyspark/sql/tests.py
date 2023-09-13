@@ -75,7 +75,7 @@ class ExamplePointUDT(UserDefinedType):
     """
 
     @classmethod
-    def sqlType(self):
+    def sqlType(cls):
         return ArrayType(DoubleType(), False)
 
     @classmethod
@@ -105,10 +105,10 @@ class ExamplePoint:
         self.y = y
 
     def __repr__(self):
-        return "ExamplePoint(%s,%s)" % (self.x, self.y)
+        return f"ExamplePoint({self.x},{self.y})"
 
     def __str__(self):
-        return "(%s,%s)" % (self.x, self.y)
+        return f"({self.x},{self.y})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and \
@@ -121,7 +121,7 @@ class PythonOnlyUDT(UserDefinedType):
     """
 
     @classmethod
-    def sqlType(self):
+    def sqlType(cls):
         return ArrayType(DoubleType(), False)
 
     @classmethod
@@ -263,7 +263,7 @@ class SQLTests(ReusedPySparkTestCase):
         self.assertEqual(14, self.df.filter((self.df.key <= 3) | (self.df.value < "2")).count())
         self.assertRaises(ValueError, lambda: self.df.key <= 3 or self.df.value < "2")
         self.assertEqual(99, self.df.filter(~(self.df.key == 1)).count())
-        self.assertRaises(ValueError, lambda: not self.df.key == 1)
+        self.assertRaises(ValueError, lambda: self.df.key != 1)
 
     def test_udf_with_callable(self):
         d = [Row(number=i, squared=i**2) for i in range(10)]
@@ -618,7 +618,7 @@ class SQLTests(ReusedPySparkTestCase):
         from pyspark.sql import functions
         self.assertEqual((0, u'99'),
                          tuple(g.agg(functions.first(df.key), functions.last(df.value)).first()))
-        self.assertTrue(95 < g.agg(functions.approxCountDistinct(df.key)).first()[0])
+        self.assertTrue(g.agg(functions.approxCountDistinct(df.key)).first()[0] > 95)
         self.assertEqual(100, g.agg(functions.countDistinct(df.value)).first()[0])
 
     def test_corr(self):
@@ -675,10 +675,10 @@ class SQLTests(ReusedPySparkTestCase):
         from pyspark.sql import functions
         rnd = df.select('key', functions.rand()).collect()
         for row in rnd:
-            assert row[1] >= 0.0 and row[1] <= 1.0, "got: %s" % row[1]
+            assert row[1] >= 0.0 and row[1] <= 1.0, f"got: {row[1]}"
         rndn = df.select('key', functions.randn(5)).collect()
         for row in rndn:
-            assert row[1] >= -4.0 and row[1] <= 4.0, "got: %s" % row[1]
+            assert row[1] >= -4.0 and row[1] <= 4.0, f"got: {row[1]}"
 
         # If the specified seed is 0, we should use it.
         # https://issues.apache.org/jira/browse/SPARK-9691
@@ -754,7 +754,7 @@ class SQLTests(ReusedPySparkTestCase):
         self.sqlCtx.sql("SET spark.sql.sources.default=org.apache.spark.sql.json")
         actual = self.sqlCtx.load(path=tmpPath)
         self.assertEqual(sorted(df.collect()), sorted(actual.collect()))
-        self.sqlCtx.sql("SET spark.sql.sources.default=" + defaultDataSourceName)
+        self.sqlCtx.sql(f"SET spark.sql.sources.default={defaultDataSourceName}")
 
         shutil.rmtree(tmpPath)
 
@@ -775,11 +775,11 @@ class SQLTests(ReusedPySparkTestCase):
         self.assertEqual(sorted(df.collect()), sorted(actual.collect()))
 
         df.write.mode("overwrite").options(noUse="this options will not be used in save.")\
-                .option("noUse", "this option will not be used in save.")\
-                .format("json").save(path=tmpPath)
+                    .option("noUse", "this option will not be used in save.")\
+                    .format("json").save(path=tmpPath)
         actual =\
-            self.sqlCtx.read.format("json")\
-                            .load(path=tmpPath, noUse="this options will not be used in load.")
+                self.sqlCtx.read.format("json")\
+                                .load(path=tmpPath, noUse="this options will not be used in load.")
         self.assertEqual(sorted(df.collect()), sorted(actual.collect()))
 
         defaultDataSourceName = self.sqlCtx.getConf("spark.sql.sources.default",
@@ -787,7 +787,7 @@ class SQLTests(ReusedPySparkTestCase):
         self.sqlCtx.sql("SET spark.sql.sources.default=org.apache.spark.sql.json")
         actual = self.sqlCtx.load(path=tmpPath)
         self.assertEqual(sorted(df.collect()), sorted(actual.collect()))
-        self.sqlCtx.sql("SET spark.sql.sources.default=" + defaultDataSourceName)
+        self.sqlCtx.sql(f"SET spark.sql.sources.default={defaultDataSourceName}")
 
         shutil.rmtree(tmpPath)
 
@@ -1182,7 +1182,7 @@ class HiveContextSQLTests(ReusedPySparkTestCase):
         self.assertEqual(sorted(df.collect()), sorted(actual.collect()))
         self.sqlCtx.sql("DROP TABLE savedJsonTable")
         self.sqlCtx.sql("DROP TABLE externalJsonTable")
-        self.sqlCtx.sql("SET spark.sql.sources.default=" + defaultDataSourceName)
+        self.sqlCtx.sql(f"SET spark.sql.sources.default={defaultDataSourceName}")
 
         shutil.rmtree(tmpPath)
 

@@ -93,18 +93,14 @@ known_translations_file = open(known_translations_file_name, "a")
 NOT_FOUND = "Not found"
 def generate_candidates(author, issues):
     candidates = []
-    # First check for full name of Github user
-    github_name = get_github_name(author, github_client)
-    if github_name:
-        candidates.append((github_name, "Full name of Github user %s" % author))
+    if github_name := get_github_name(author, github_client):
+        candidates.append((github_name, f"Full name of Github user {author}"))
     else:
-        candidates.append((NOT_FOUND, "No full name found for Github user %s" % author))
-    # Then do the same for JIRA user
-    jira_name = get_jira_name(author, jira_client)
-    if jira_name:
-        candidates.append((jira_name, "Full name of JIRA user %s" % author))
+        candidates.append((NOT_FOUND, f"No full name found for Github user {author}"))
+    if jira_name := get_jira_name(author, jira_client):
+        candidates.append((jira_name, f"Full name of JIRA user {author}"))
     else:
-        candidates.append((NOT_FOUND, "No full name found for JIRA user %s" % author))
+        candidates.append((NOT_FOUND, f"No full name found for JIRA user {author}"))
     # Then do the same for the assignee of each of the associated JIRAs
     # Note that a given issue may not have an assignee, or the assignee may not have a full name
     for issue in issues:
@@ -113,19 +109,17 @@ def generate_candidates(author, issues):
         except JIRAError as e:
             # Do not exit just because an issue is not found!
             if e.status_code == 404:
-                warnings.append("Issue %s not found!" % issue)
+                warnings.append(f"Issue {issue} not found!")
                 continue
             raise e
-        jira_assignee = jira_issue.fields.assignee
-        if jira_assignee:
+        if jira_assignee := jira_issue.fields.assignee:
             user_name = jira_assignee.name
-            display_name = jira_assignee.displayName
-            if display_name:
-                candidates.append((display_name, "Full name of %s assignee %s" % (issue, user_name)))
+            if display_name := jira_assignee.displayName:
+                candidates.append((display_name, f"Full name of {issue} assignee {user_name}"))
             else:
                 candidates.append((NOT_FOUND, "No full name found for %s assignee %" % (issue, user_name)))
         else:
-            candidates.append((NOT_FOUND, "No assignee found for %s" % issue))
+            candidates.append((NOT_FOUND, f"No assignee found for {issue}"))
     # Guard against special characters in candidate names
     # Note that the candidate name may already be in unicode (JIRA returns this)
     for i, (candidate, source) in enumerate(candidates):

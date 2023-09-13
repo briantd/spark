@@ -98,10 +98,10 @@ class DataTypeSingleton(type):
 
     _instances = {}
 
-    def __call__(cls):
-        if cls not in cls._instances:
-            cls._instances[cls] = super(DataTypeSingleton, cls).__call__()
-        return cls._instances[cls]
+    def __call__(self):
+        if self not in self._instances:
+            self._instances[self] = super(DataTypeSingleton, self).__call__()
+        return self._instances[self]
 
 
 class NullType(DataType):
@@ -292,11 +292,10 @@ class ArrayType(DataType):
         self.containsNull = containsNull
 
     def simpleString(self):
-        return 'array<%s>' % self.elementType.simpleString()
+        return f'array<{self.elementType.simpleString()}>'
 
     def __repr__(self):
-        return "ArrayType(%s,%s)" % (self.elementType,
-                                     str(self.containsNull).lower())
+        return f"ArrayType({self.elementType},{str(self.containsNull).lower()})"
 
     def jsonValue(self):
         return {"type": self.typeName(),
@@ -348,11 +347,10 @@ class MapType(DataType):
         self.valueContainsNull = valueContainsNull
 
     def simpleString(self):
-        return 'map<%s,%s>' % (self.keyType.simpleString(), self.valueType.simpleString())
+        return f'map<{self.keyType.simpleString()},{self.valueType.simpleString()}>'
 
     def __repr__(self):
-        return "MapType(%s,%s,%s)" % (self.keyType, self.valueType,
-                                      str(self.valueContainsNull).lower())
+        return f"MapType({self.keyType},{self.valueType},{str(self.valueContainsNull).lower()})"
 
     def jsonValue(self):
         return {"type": self.typeName(),
@@ -372,14 +370,18 @@ class MapType(DataType):
     def toInternal(self, obj):
         if not self.needConversion():
             return obj
-        return obj and dict((self.keyType.toInternal(k), self.valueType.toInternal(v))
-                            for k, v in obj.items())
+        return obj and {
+            self.keyType.toInternal(k): self.valueType.toInternal(v)
+            for k, v in obj.items()
+        }
 
     def fromInternal(self, obj):
         if not self.needConversion():
             return obj
-        return obj and dict((self.keyType.fromInternal(k), self.valueType.fromInternal(v))
-                            for k, v in obj.items())
+        return obj and {
+            self.keyType.fromInternal(k): self.valueType.fromInternal(v)
+            for k, v in obj.items()
+        }
 
 
 class StructField(DataType):
@@ -409,11 +411,10 @@ class StructField(DataType):
         self.metadata = metadata or {}
 
     def simpleString(self):
-        return '%s:%s' % (self.name, self.dataType.simpleString())
+        return f'{self.name}:{self.dataType.simpleString()}'
 
     def __repr__(self):
-        return "StructField(%s,%s,%s)" % (self.name, self.dataType,
-                                          str(self.nullable).lower())
+        return f"StructField({self.name},{self.dataType},{str(self.nullable).lower()})"
 
     def jsonValue(self):
         return {"name": self.name,
@@ -512,11 +513,10 @@ class StructType(DataType):
         return self
 
     def simpleString(self):
-        return 'struct<%s>' % (','.join(f.simpleString() for f in self.fields))
+        return f"struct<{','.join(f.simpleString() for f in self.fields)}>"
 
     def __repr__(self):
-        return ("StructType(List(%s))" %
-                ",".join(str(field) for field in self.fields))
+        return f'StructType(List({",".join(str(field) for field in self.fields)}))'
 
     def jsonValue(self):
         return {"type": self.typeName(),
@@ -544,16 +544,15 @@ class StructType(DataType):
                 return tuple(f.toInternal(d.get(n)) for n, f in zip(self.names, self.fields))
             else:
                 raise ValueError("Unexpected tuple %r with StructType" % obj)
+        elif isinstance(obj, dict):
+            return tuple(obj.get(n) for n in self.names)
+        elif isinstance(obj, (list, tuple)):
+            return tuple(obj)
+        elif hasattr(obj, "__dict__"):
+            d = obj.__dict__
+            return tuple(d.get(n) for n in self.names)
         else:
-            if isinstance(obj, dict):
-                return tuple(obj.get(n) for n in self.names)
-            elif isinstance(obj, (list, tuple)):
-                return tuple(obj)
-            elif hasattr(obj, "__dict__"):
-                d = obj.__dict__
-                return tuple(d.get(n) for n in self.names)
-            else:
-                raise ValueError("Unexpected tuple %r with StructType" % obj)
+            raise ValueError("Unexpected tuple %r with StructType" % obj)
 
     def fromInternal(self, obj):
         if obj is None:
@@ -639,22 +638,21 @@ class UserDefinedType(DataType):
     def jsonValue(self):
         if self.scalaUDT():
             assert self.module() != '__main__', 'UDT in __main__ cannot work with ScalaUDT'
-            schema = {
+            return {
                 "type": "udt",
                 "class": self.scalaUDT(),
-                "pyClass": "%s.%s" % (self.module(), type(self).__name__),
-                "sqlType": self.sqlType().jsonValue()
+                "pyClass": f"{self.module()}.{type(self).__name__}",
+                "sqlType": self.sqlType().jsonValue(),
             }
         else:
             ser = CloudPickleSerializer()
             b = ser.dumps(type(self))
-            schema = {
+            return {
                 "type": "udt",
-                "pyClass": "%s.%s" % (self.module(), type(self).__name__),
+                "pyClass": f"{self.module()}.{type(self).__name__}",
                 "serializedClass": base64.b64encode(b).decode('utf8'),
-                "sqlType": self.sqlType().jsonValue()
+                "sqlType": self.sqlType().jsonValue(),
             }
-        return schema
 
     @classmethod
     def fromJson(cls, json):
@@ -676,9 +674,10 @@ class UserDefinedType(DataType):
 
 _atomic_types = [StringType, BinaryType, BooleanType, DecimalType, FloatType, DoubleType,
                  ByteType, ShortType, IntegerType, LongType, DateType, TimestampType, NullType]
-_all_atomic_types = dict((t.typeName(), t) for t in _atomic_types)
-_all_complex_types = dict((v.typeName(), v)
-                          for v in [ArrayType, MapType, StructType])
+_all_atomic_types = {t.typeName(): t for t in _atomic_types}
+_all_complex_types = {
+    v.typeName(): v for v in [ArrayType, MapType, StructType]
+}
 
 
 def _parse_datatype_json_string(json_string):
@@ -734,24 +733,24 @@ _FIXED_DECIMAL = re.compile("decimal\\((\\d+),(\\d+)\\)")
 
 
 def _parse_datatype_json_value(json_value):
-    if not isinstance(json_value, dict):
-        if json_value in _all_atomic_types.keys():
-            return _all_atomic_types[json_value]()
-        elif json_value == 'decimal':
-            return DecimalType()
-        elif _FIXED_DECIMAL.match(json_value):
-            m = _FIXED_DECIMAL.match(json_value)
-            return DecimalType(int(m.group(1)), int(m.group(2)))
-        else:
-            raise ValueError("Could not parse datatype: %s" % json_value)
-    else:
+    if isinstance(json_value, dict):
         tpe = json_value["type"]
         if tpe in _all_complex_types:
             return _all_complex_types[tpe].fromJson(json_value)
         elif tpe == 'udt':
             return UserDefinedType.fromJson(json_value)
         else:
-            raise ValueError("not supported type: %s" % tpe)
+            raise ValueError(f"not supported type: {tpe}")
+
+    elif json_value in _all_atomic_types.keys():
+        return _all_atomic_types[json_value]()
+    elif json_value == 'decimal':
+        return DecimalType()
+    elif _FIXED_DECIMAL.match(json_value):
+        m = _FIXED_DECIMAL.match(json_value)
+        return DecimalType(int(m.group(1)), int(m.group(2)))
+    else:
+        raise ValueError(f"Could not parse datatype: {json_value}")
 
 
 # Mapping Python types to Spark SQL DataType
@@ -769,10 +768,10 @@ _type_mappings = {
 }
 
 if sys.version < "3":
-    _type_mappings.update({
+    _type_mappings |= {
         unicode: StringType,
         long: LongType,
-    })
+    }
 
 
 def _infer_type(obj):
@@ -807,7 +806,7 @@ def _infer_type(obj):
         try:
             return _infer_schema(obj)
         except TypeError:
-            raise TypeError("not supported type: %s" % type(obj))
+            raise TypeError(f"not supported type: {type(obj)}")
 
 
 def _infer_schema(row):
@@ -828,7 +827,7 @@ def _infer_schema(row):
         items = sorted(row.__dict__.items())
 
     else:
-        raise TypeError("Can not infer schema for type: %s" % type(row))
+        raise TypeError(f"Can not infer schema for type: {type(row)}")
 
     fields = [StructField(k, _infer_type(v), True) for k, v in items]
     return StructType(fields)
@@ -853,17 +852,17 @@ def _merge_type(a, b):
         return a
     elif type(a) is not type(b):
         # TODO: type cast (such as int -> long)
-        raise TypeError("Can not merge type %s and %s" % (type(a), type(b)))
+        raise TypeError(f"Can not merge type {type(a)} and {type(b)}")
 
     # same type
     if isinstance(a, StructType):
-        nfs = dict((f.name, f.dataType) for f in b.fields)
+        nfs = {f.name: f.dataType for f in b.fields}
         fields = [StructField(f.name, _merge_type(f.dataType, nfs.get(f.name, NullType())))
                   for f in a.fields]
-        names = set([f.name for f in fields])
-        for n in nfs:
+        names = {f.name for f in fields}
+        for n, value in nfs.items():
             if n not in names:
-                fields.append(StructField(n, nfs[n]))
+                fields.append(StructField(n, value))
         return StructType(fields)
 
     elif isinstance(a, ArrayType):
@@ -902,7 +901,7 @@ def _create_converter(dataType):
     elif isinstance(dataType, MapType):
         kconv = _create_converter(dataType.keyType)
         vconv = _create_converter(dataType.valueType)
-        return lambda row: dict((kconv(k), vconv(v)) for k, v in row.items())
+        return lambda row: {kconv(k): vconv(v) for k, v in row.items()}
 
     elif isinstance(dataType, NullType):
         return lambda x: None
@@ -930,12 +929,12 @@ def _create_converter(dataType):
         elif hasattr(obj, "__dict__"):  # object
             d = obj.__dict__
         else:
-            raise TypeError("Unexpected obj type: %s" % type(obj))
+            raise TypeError(f"Unexpected obj type: {type(obj)}")
 
         if convert_fields:
-            return tuple([conv(d.get(name)) for name, conv in zip(names, converters)])
+            return tuple(conv(d.get(name)) for name, conv in zip(names, converters))
         else:
-            return tuple([d.get(name) for name in names])
+            return tuple(d.get(name) for name in names)
 
     return convert_struct
 
@@ -971,10 +970,10 @@ def _split_schema_abstract(s):
                 brackets.append(c)
             elif c in _BRACKETS.values():
                 if not brackets or c != _BRACKETS[brackets.pop()]:
-                    raise ValueError("unexpected " + c)
+                    raise ValueError(f"unexpected {c}")
 
     if brackets:
-        raise ValueError("brackets not closed: %s" % brackets)
+        raise ValueError(f"brackets not closed: {brackets}")
     if w:
         r.append(w)
     return r
@@ -993,12 +992,11 @@ def _parse_field_abstract(s):
     >>> _parse_field_abstract("a{[]}")
     StructField(a,MapType(NullType,ArrayType(NullType,true),true),true)
     """
-    if set(_BRACKETS.keys()) & set(s):
-        idx = min((s.index(c) for c in _BRACKETS if c in s))
-        name = s[:idx]
-        return StructField(name, _parse_schema_abstract(s[idx:]), True)
-    else:
+    if not set(_BRACKETS.keys()) & set(s):
         return StructField(s, NullType(), True)
+    idx = min((s.index(c) for c in _BRACKETS if c in s))
+    name = s[:idx]
+    return StructField(name, _parse_schema_abstract(s[idx:]), True)
 
 
 def _parse_schema_abstract(s):
@@ -1062,14 +1060,15 @@ def _infer_schema_type(obj, dataType):
 
     elif isinstance(dataType, StructType):
         fs = dataType.fields
-        assert len(fs) == len(obj), \
-            "Obj(%s) have different length with fields(%s)" % (obj, fs)
+        assert len(fs) == len(
+            obj
+        ), f"Obj({obj}) have different length with fields({fs})"
         fields = [StructField(f.name, _infer_schema_type(o, f.dataType), True)
                   for o, f in zip(obj, fs)]
         return StructType(fields)
 
     else:
-        raise TypeError("Unexpected dataType: %s" % type(dataType))
+        raise TypeError(f"Unexpected dataType: {type(dataType)}")
 
 
 _acceptable_types = {
@@ -1121,7 +1120,7 @@ def _verify_type(obj, dataType):
         return
 
     if isinstance(dataType, UserDefinedType):
-        if not (hasattr(obj, '__UDT__') and obj.__UDT__ == dataType):
+        if not hasattr(obj, '__UDT__') or obj.__UDT__ != dataType:
             raise ValueError("%r is not an instance of type %r" % (obj, dataType))
         _verify_type(dataType.toInternal(obj), dataType.sqlType())
         return
@@ -1132,10 +1131,8 @@ def _verify_type(obj, dataType):
     if _type is StructType:
         if not isinstance(obj, (tuple, list)):
             raise TypeError("StructType can not accept object %r in type %s" % (obj, type(obj)))
-    else:
-        # subclass of them can not be fromInternald in JVM
-        if type(obj) not in _acceptable_types[_type]:
-            raise TypeError("%s can not accept object %r in type %s" % (dataType, obj, type(obj)))
+    elif type(obj) not in _acceptable_types[_type]:
+        raise TypeError("%s can not accept object %r in type %s" % (dataType, obj, type(obj)))
 
     if isinstance(dataType, ArrayType):
         for i in obj:
@@ -1191,18 +1188,18 @@ class Row(tuple):
     Row(name='Alice', age=11)
     """
 
-    def __new__(self, *args, **kwargs):
+    def __new__(cls, *args, **kwargs):
         if args and kwargs:
             raise ValueError("Can not use both args "
                              "and kwargs to create Row")
         if args:
             # create row class or objects
-            return tuple.__new__(self, args)
+            return tuple.__new__(cls, args)
 
         elif kwargs:
             # create row objects
             names = sorted(kwargs.keys())
-            row = tuple.__new__(self, [kwargs[n] for n in names])
+            row = tuple.__new__(cls, [kwargs[n] for n in names])
             row.__fields__ = names
             return row
 
@@ -1233,9 +1230,10 @@ class Row(tuple):
                 elif isinstance(obj, list):
                     return [conv(o) for o in obj]
                 elif isinstance(obj, dict):
-                    return dict((k, conv(v)) for k, v in obj.items())
+                    return {k: conv(v) for k, v in obj.items()}
                 else:
                     return obj
+
             return dict(zip(self.__fields__, (conv(o) for o in self)))
         else:
             return dict(zip(self.__fields__, self))
@@ -1266,9 +1264,7 @@ class Row(tuple):
             # but this will not be used in normal cases
             idx = self.__fields__.index(item)
             return self[idx]
-        except IndexError:
-            raise AttributeError(item)
-        except ValueError:
+        except (IndexError, ValueError):
             raise AttributeError(item)
 
     def __setattr__(self, key, value):
@@ -1285,11 +1281,11 @@ class Row(tuple):
 
     def __repr__(self):
         """Printable representation of Row used in Python REPL."""
-        if hasattr(self, "__fields__"):
-            return "Row(%s)" % ", ".join("%s=%r" % (k, v)
-                                         for k, v in zip(self.__fields__, tuple(self)))
-        else:
-            return "<Row(%s)>" % ", ".join(self)
+        return (
+            f'Row({", ".join("%s=%r" % (k, v) for k, v in zip(self.__fields__, tuple(self)))})'
+            if hasattr(self, "__fields__")
+            else f'<Row({", ".join(self)})>'
+        )
 
 
 class DateConverter(object):

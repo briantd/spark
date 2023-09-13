@@ -37,8 +37,8 @@ if __name__ == "__main__":
     lrModel = lr.fit(training)
 
     # Print the coefficients and intercept for logistic regression
-    print("Coefficients: " + str(lrModel.coefficients))
-    print("Intercept: " + str(lrModel.intercept))
+    print(f"Coefficients: {str(lrModel.coefficients)}")
+    print(f"Intercept: {str(lrModel.intercept)}")
     # $example off$
 
     sc.stop()

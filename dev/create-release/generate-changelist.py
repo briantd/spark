@@ -35,9 +35,9 @@ NEW_RELEASE_VERSION = "1.0.0"
 PREV_RELEASE_GIT_TAG = "v0.9.1"
 
 CHANGELIST = "CHANGES.txt"
-OLD_CHANGELIST = "%s.old" % (CHANGELIST)
-NEW_CHANGELIST = "%s.new" % (CHANGELIST)
-TMP_CHANGELIST = "%s.tmp" % (CHANGELIST)
+OLD_CHANGELIST = f"{CHANGELIST}.old"
+NEW_CHANGELIST = f"{CHANGELIST}.new"
+TMP_CHANGELIST = f"{CHANGELIST}.tmp"
 
 # date before first PR in TLP Spark repo
 SPARK_REPO_CHANGE_DATE1 = time.strptime("2014-02-26", "%Y-%m-%d")
@@ -47,7 +47,7 @@ SPARK_REPO_CHANGE_DATE2 = time.strptime("2014-03-01", "%Y-%m-%d")
 # and incubator repos
 SPARK_REPO_PR_NUM_THRESH = 200
 
-LOG_FILE_NAME = "changes_%s" % time.strftime("%h_%m_%Y_%I_%M_%S")
+LOG_FILE_NAME = f'changes_{time.strftime("%h_%m_%Y_%I_%M_%S")}'
 LOG_FILE = open(LOG_FILE_NAME, 'w')
 
 

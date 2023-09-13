@@ -29,8 +29,7 @@ def _jvm():
     Returns the JVM view associated with SparkContext. Must be called
     after SparkContext is initialized.
     """
-    jvm = SparkContext._jvm
-    if jvm:
+    if jvm := SparkContext._jvm:
         return jvm
     else:
         raise AttributeError("Cannot load _jvm from SparkContext. Is SparkContext initialized?")
@@ -179,7 +178,7 @@ class JavaModel(Model, JavaTransformer):
         :return: Copy of this instance
         """
         if extra is None:
-            extra = dict()
+            extra = {}
         that = super(JavaModel, self).copy(extra)
         that._java_obj = self._java_obj.copy(self._empty_java_param_map())
         that._transfer_params_to_java()

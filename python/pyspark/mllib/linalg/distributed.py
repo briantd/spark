@@ -101,7 +101,7 @@ class RowMatrix(DistributedMatrix):
               and rows.getClass().getSimpleName() == "RowMatrix"):
             java_matrix = rows
         else:
-            raise TypeError("rows should be an RDD of vectors, got %s" % type(rows))
+            raise TypeError(f"rows should be an RDD of vectors, got {type(rows)}")
 
         self._java_matrix_wrapper = JavaModelWrapper(java_matrix)
 
@@ -168,7 +168,7 @@ class IndexedRow(object):
         self.vector = _convert_to_vector(vector)
 
     def __repr__(self):
-        return "IndexedRow(%s, %s)" % (self.index, self.vector)
+        return f"IndexedRow({self.index}, {self.vector})"
 
 
 def _convert_to_indexed_row(row):
@@ -177,7 +177,7 @@ def _convert_to_indexed_row(row):
     elif isinstance(row, tuple) and len(row) == 2:
         return IndexedRow(*row)
     else:
-        raise TypeError("Cannot convert type %s into IndexedRow" % type(row))
+        raise TypeError(f"Cannot convert type {type(row)} into IndexedRow")
 
 
 class IndexedRowMatrix(DistributedMatrix):
@@ -256,8 +256,7 @@ class IndexedRowMatrix(DistributedMatrix):
         # on the Scala/Java side. Then we map each Row in the
         # DataFrame back to an IndexedRow on this side.
         rows_df = callMLlibFunc("getIndexedRows", self._java_matrix_wrapper._java_model)
-        rows = rows_df.map(lambda row: IndexedRow(row[0], row[1]))
-        return rows
+        return rows_df.map(lambda row: IndexedRow(row[0], row[1]))
 
     def numRows(self):
         """
@@ -371,7 +370,7 @@ class MatrixEntry(object):
         self.value = float(value)
 
     def __repr__(self):
-        return "MatrixEntry(%s, %s, %s)" % (self.i, self.j, self.value)
+        return f"MatrixEntry({self.i}, {self.j}, {self.value})"
 
 
 def _convert_to_matrix_entry(entry):
@@ -380,7 +379,7 @@ def _convert_to_matrix_entry(entry):
     elif isinstance(entry, tuple) and len(entry) == 3:
         return MatrixEntry(*entry)
     else:
-        raise TypeError("Cannot convert type %s into MatrixEntry" % type(entry))
+        raise TypeError(f"Cannot convert type {type(entry)} into MatrixEntry")
 
 
 class CoordinateMatrix(DistributedMatrix):
@@ -461,8 +460,7 @@ class CoordinateMatrix(DistributedMatrix):
         # DataFrame on the Scala/Java side. Then we map each Row in
         # the DataFrame back to a MatrixEntry on this side.
         entries_df = callMLlibFunc("getMatrixEntries", self._java_matrix_wrapper._java_model)
-        entries = entries_df.map(lambda row: MatrixEntry(row[0], row[1], row[2]))
-        return entries
+        return entries_df.map(lambda row: MatrixEntry(row[0], row[1], row[2]))
 
     def numRows(self):
         """
@@ -581,15 +579,18 @@ class CoordinateMatrix(DistributedMatrix):
 
 
 def _convert_to_matrix_block_tuple(block):
-    if (isinstance(block, tuple) and len(block) == 2
-            and isinstance(block[0], tuple) and len(block[0]) == 2
-            and isinstance(block[1], Matrix)):
-        blockRowIndex = int(block[0][0])
-        blockColIndex = int(block[0][1])
-        subMatrix = block[1]
-        return ((blockRowIndex, blockColIndex), subMatrix)
-    else:
-        raise TypeError("Cannot convert type %s into a sub-matrix block tuple" % type(block))
+    if (
+        not isinstance(block, tuple)
+        or len(block) != 2
+        or not isinstance(block[0], tuple)
+        or len(block[0]) != 2
+        or not isinstance(block[1], Matrix)
+    ):
+        raise TypeError(
+            f"Cannot convert type {type(block)} into a sub-matrix block tuple"
+        )
+    blockRowIndex = int(block[0][0])
+    return (blockRowIndex, int(block[0][1])), block[1]
 
 
 class BlockMatrix(DistributedMatrix):
@@ -686,8 +687,7 @@ class BlockMatrix(DistributedMatrix):
         # DataFrame on the Scala/Java side. Then we map each Row in
         # the DataFrame back to a sub-matrix block on this side.
         blocks_df = callMLlibFunc("getMatrixBlocks", self._java_matrix_wrapper._java_model)
-        blocks = blocks_df.map(lambda row: ((row[0][0], row[0][1]), row[1]))
-        return blocks
+        return blocks_df.map(lambda row: ((row[0][0], row[0][1]), row[1]))
 
     @property
     def rowsPerBlock(self):
@@ -802,7 +802,7 @@ class BlockMatrix(DistributedMatrix):
         DenseMatrix(6, 2, [8.0, 2.0, 3.0, 14.0, 16.0, 18.0, 4.0, 16.0, 18.0, 20.0, 22.0, 24.0], 0)
         """
         if not isinstance(other, BlockMatrix):
-            raise TypeError("Other should be a BlockMatrix, got %s" % type(other))
+            raise TypeError(f"Other should be a BlockMatrix, got {type(other)}")
 
         other_java_block_matrix = other._java_matrix_wrapper._java_model
         java_block_matrix = self._java_matrix_wrapper.call("add", other_java_block_matrix)
@@ -837,7 +837,7 @@ class BlockMatrix(DistributedMatrix):
         DenseMatrix(2, 2, [227.0, 258.0, 394.0, 450.0], 0)
         """
         if not isinstance(other, BlockMatrix):
-            raise TypeError("Other should be a BlockMatrix, got %s" % type(other))
+            raise TypeError(f"Other should be a BlockMatrix, got {type(other)}")
 
         other_java_block_matrix = other._java_matrix_wrapper._java_model
         java_block_matrix = self._java_matrix_wrapper.call("multiply", other_java_block_matrix)

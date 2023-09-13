@@ -111,7 +111,7 @@ class Serializer(object):
         return not self.__eq__(other)
 
     def __repr__(self):
-        return "%s()" % self.__class__.__name__
+        return f"{self.__class__.__name__}()"
 
     def __hash__(self):
         return hash(str(self))
@@ -127,7 +127,7 @@ class FramedSerializer(Serializer):
     def __init__(self):
         # On Python 2.6, we can't write bytearrays to streams, so we need to convert them
         # to strings first. Check if the version number is that old.
-        self._only_write_strings = sys.version_info[0:2] <= (2, 6)
+        self._only_write_strings = sys.version_info[:2] <= (2, 6)
 
     def dump_stream(self, iterator, stream):
         for obj in iterator:
@@ -275,7 +275,7 @@ class AutoBatchedSerializer(BatchedSerializer):
                 batch //= 2
 
     def __repr__(self):
-        return "AutoBatchedSerializer(%s)" % self.serializer
+        return f"AutoBatchedSerializer({self.serializer})"
 
 
 class CartesianDeserializer(FramedSerializer):
@@ -301,12 +301,10 @@ class CartesianDeserializer(FramedSerializer):
 
     def load_stream(self, stream):
         for (keys, vals) in self.prepare_keys_values(stream):
-            for pair in product(keys, vals):
-                yield pair
+            yield from product(keys, vals)
 
     def __repr__(self):
-        return "CartesianDeserializer(%s, %s)" % \
-               (str(self.key_ser), str(self.val_ser))
+        return f"CartesianDeserializer({str(self.key_ser)}, {str(self.val_ser)})"
 
 
 class PairDeserializer(CartesianDeserializer):
@@ -320,11 +318,10 @@ class PairDeserializer(CartesianDeserializer):
             if len(keys) != len(vals):
                 raise ValueError("Can not deserialize RDD with different number of items"
                                  " in pair: (%d, %d)" % (len(keys), len(vals)))
-            for pair in zip(keys, vals):
-                yield pair
+            yield from zip(keys, vals)
 
     def __repr__(self):
-        return "PairDeserializer(%s, %s)" % (str(self.key_ser), str(self.val_ser))
+        return f"PairDeserializer({str(self.key_ser)}, {str(self.val_ser)})"
 
 
 class NoOpSerializer(FramedSerializer):
@@ -471,7 +468,7 @@ class AutoSerializer(FramedSerializer):
         elif _type == b'P':
             return pickle.loads(obj[1:])
         else:
-            raise ValueError("invalid sevialization type: %s" % _type)
+            raise ValueError(f"invalid sevialization type: {_type}")
 
 
 class CompressedSerializer(FramedSerializer):
@@ -490,7 +487,7 @@ class CompressedSerializer(FramedSerializer):
         return self.serializer.loads(zlib.decompress(obj))
 
     def __repr__(self):
-        return "CompressedSerializer(%s)" % self.serializer
+        return f"CompressedSerializer({self.serializer})"
 
 
 class UTF8Deserializer(Serializer):
@@ -521,14 +518,14 @@ class UTF8Deserializer(Serializer):
             return
 
     def __repr__(self):
-        return "UTF8Deserializer(%s)" % self.use_unicode
+        return f"UTF8Deserializer({self.use_unicode})"
 
 
 def read_long(stream):
-    length = stream.read(8)
-    if not length:
+    if length := stream.read(8):
+        return struct.unpack("!q", length)[0]
+    else:
         raise EOFError
-    return struct.unpack("!q", length)[0]
 
 
 def write_long(value, stream):
@@ -540,10 +537,10 @@ def pack_long(value):
 
 
 def read_int(stream):
-    length = stream.read(4)
-    if not length:
+    if length := stream.read(4):
+        return struct.unpack("!i", length)[0]
+    else:
         raise EOFError
-    return struct.unpack("!i", length)[0]
 
 
 def write_int(value, stream):

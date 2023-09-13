@@ -61,8 +61,9 @@ class SCCallSiteSync(object):
     def __init__(self, sc):
         call_site = first_spark_call()
         if call_site is not None:
-            self._call_site = "%s at %s:%s" % (
-                call_site.function, call_site.file, call_site.linenum)
+            self._call_site = (
+                f"{call_site.function} at {call_site.file}:{call_site.linenum}"
+            )
         else:
             self._call_site = "Error! Could not extract traceback info"
         self._context = sc

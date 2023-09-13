@@ -34,13 +34,13 @@ class Param(object):
 
     def __init__(self, parent, name, doc):
         if not isinstance(parent, Identifiable):
-            raise TypeError("Parent must be an Identifiable but got type %s." % type(parent))
+            raise TypeError(f"Parent must be an Identifiable but got type {type(parent)}.")
         self.parent = parent.uid
         self.name = str(name)
         self.doc = str(doc)
 
     def __str__(self):
-        return str(self.parent) + "__" + self.name
+        return f"{str(self.parent)}__{self.name}"
 
     def __repr__(self):
         return "Param(parent=%r, name=%r, doc=%r)" % (self.parent, self.name, self.doc)
@@ -99,13 +99,13 @@ class Params(Identifiable):
         values = []
         if self.isDefined(param):
             if param in self._defaultParamMap:
-                values.append("default: %s" % self._defaultParamMap[param])
+                values.append(f"default: {self._defaultParamMap[param]}")
             if param in self._paramMap:
-                values.append("current: %s" % self._paramMap[param])
+                values.append(f"current: {self._paramMap[param]}")
         else:
             values.append("undefined")
         valueStr = "(" + ", ".join(values) + ")"
-        return "%s: %s %s" % (param.name, param.doc, valueStr)
+        return f"{param.name}: {param.doc} {valueStr}"
 
     @since("1.4.0")
     def explainParams(self):
@@ -124,7 +124,7 @@ class Params(Identifiable):
         if isinstance(param, Param):
             return param
         else:
-            raise ValueError("Cannot find param with name %s." % paramName)
+            raise ValueError(f"Cannot find param with name {paramName}.")
 
     @since("1.4.0")
     def isSet(self, param):
@@ -184,7 +184,7 @@ class Params(Identifiable):
         :return: merged param map
         """
         if extra is None:
-            extra = dict()
+            extra = {}
         paramMap = self._defaultParamMap.copy()
         paramMap.update(self._paramMap)
         paramMap.update(extra)
@@ -204,7 +204,7 @@ class Params(Identifiable):
         :return: Copy of this instance
         """
         if extra is None:
-            extra = dict()
+            extra = {}
         that = copy.copy(self)
         that._paramMap = self.extractParamMap(extra)
         return that
@@ -268,7 +268,7 @@ class Params(Identifiable):
         :return: the target instance with param values copied
         """
         if extra is None:
-            extra = dict()
+            extra = {}
         paramMap = self.extractParamMap(extra)
         for p in self.params:
             if p in paramMap and to.hasParam(p.name):

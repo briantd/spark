@@ -137,7 +137,7 @@ class SparkConf(object):
             raise Exception("Either pass one key-value pair or a list of pairs")
         elif key is not None:
             self._jconf.setExecutorEnv(key, value)
-        elif pairs is not None:
+        else:
             for (k, v) in pairs:
                 self._jconf.setExecutorEnv(k, v)
         return self
@@ -154,19 +154,13 @@ class SparkConf(object):
 
     def get(self, key, defaultValue=None):
         """Get the configured value for some key, or return a default otherwise."""
-        if defaultValue is None:   # Py4J doesn't call the right get() if we pass None
-            if not self._jconf.contains(key):
-                return None
-            return self._jconf.get(key)
-        else:
+        if defaultValue is not None:
             return self._jconf.get(key, defaultValue)
+        return None if not self._jconf.contains(key) else self._jconf.get(key)
 
     def getAll(self):
         """Get all values as a list of key-value pairs."""
-        pairs = []
-        for elem in self._jconf.getAll():
-            pairs.append((elem._1(), elem._2()))
-        return pairs
+        return [(elem._1(), elem._2()) for elem in self._jconf.getAll()]
 
     def contains(self, key):
         """Does this configuration contain a given key?"""

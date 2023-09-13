@@ -301,7 +301,7 @@ class SQLContext(object):
             raise TypeError("Cannot apply schema to DataFrame")
 
         if not isinstance(schema, StructType):
-            raise TypeError("schema should be StructType, but got %s" % type(schema))
+            raise TypeError(f"schema should be StructType, but got {type(schema)}")
 
         return self.createDataFrame(rdd, schema)
 
@@ -320,7 +320,9 @@ class SQLContext(object):
             schema = struct
 
         elif not isinstance(schema, StructType):
-            raise TypeError("schema should be StructType or list or None, but got: %s" % schema)
+            raise TypeError(
+                f"schema should be StructType or list or None, but got: {schema}"
+            )
 
         # convert python objects to sql data
         rdd = rdd.map(schema.toInternal)
@@ -353,7 +355,9 @@ class SQLContext(object):
                 _verify_type(row, schema)
 
         else:
-            raise TypeError("schema should be StructType or list or None, but got: %s" % schema)
+            raise TypeError(
+                f"schema should be StructType or list or None, but got: {schema}"
+            )
 
         # convert python objects to sql data
         data = [schema.toInternal(row) for row in data]
@@ -632,9 +636,9 @@ class SQLContext(object):
         True
         """
         if dbName is None:
-            return [name for name in self._ssql_ctx.tableNames()]
+            return list(self._ssql_ctx.tableNames())
         else:
-            return [name for name in self._ssql_ctx.tableNames(dbName)]
+            return list(self._ssql_ctx.tableNames(dbName))
 
     @since(1.0)
     def cacheTable(self, tableName):

@@ -60,9 +60,9 @@ def createContext(host, port, outputPath):
     wordCounts = words.map(lambda x: (x, 1)).reduceByKey(lambda x, y: x + y)
 
     def echo(time, rdd):
-        counts = "Counts at time %s %s" % (time, rdd.collect())
+        counts = f"Counts at time {time} {rdd.collect()}"
         print(counts)
-        print("Appending to " + os.path.abspath(outputPath))
+        print(f"Appending to {os.path.abspath(outputPath)}")
         with open(outputPath, 'a') as f:
             f.write(counts + "\n")
 
