@@ -110,11 +110,11 @@ def clean_up():
 
 # merge the requested PR and return the merge hash
 def merge_pr(pr_num, target_ref, title, body, pr_repo_desc):
-    pr_branch_name = "%s_MERGE_PR_%s" % (BRANCH_PREFIX, pr_num)
-    target_branch_name = "%s_MERGE_PR_%s_%s" % (BRANCH_PREFIX, pr_num, target_ref.upper())
-    run_cmd("git fetch %s pull/%s/head:%s" % (PR_REMOTE_NAME, pr_num, pr_branch_name))
-    run_cmd("git fetch %s %s:%s" % (PUSH_REMOTE_NAME, target_ref, target_branch_name))
-    run_cmd("git checkout %s" % target_branch_name)
+    pr_branch_name = f"{BRANCH_PREFIX}_MERGE_PR_{pr_num}"
+    target_branch_name = f"{BRANCH_PREFIX}_MERGE_PR_{pr_num}_{target_ref.upper()}"
+    run_cmd(f"git fetch {PR_REMOTE_NAME} pull/{pr_num}/head:{pr_branch_name}")
+    run_cmd(f"git fetch {PUSH_REMOTE_NAME} {target_ref}:{target_branch_name}")
+    run_cmd(f"git checkout {target_branch_name}")
 
     had_conflicts = False
     try:
@@ -126,8 +126,9 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc):
         continue_maybe(msg)
         had_conflicts = True
 
-    commit_authors = run_cmd(['git', 'log', 'HEAD..%s' % pr_branch_name,
-                             '--pretty=format:%an <%ae>']).split("\n")
+    commit_authors = run_cmd(
+        ['git', 'log', f'HEAD..{pr_branch_name}', '--pretty=format:%an <%ae>']
+    ).split("\n")
     distinct_authors = sorted(set(commit_authors),
                               key=lambda x: commit_authors.count(x), reverse=True)
     primary_author = raw_input(
@@ -136,8 +137,14 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc):
     if primary_author == "":
         primary_author = distinct_authors[0]
 
-    commits = run_cmd(['git', 'log', 'HEAD..%s' % pr_branch_name,
-                      '--pretty=format:%h [%an] %s']).split("\n\n")
+    commits = run_cmd(
+        [
+            'git',
+            'log',
+            f'HEAD..{pr_branch_name}',
+            '--pretty=format:%h [%an] %s',
+        ]
+    ).split("\n\n")
 
     merge_message_flags = []
 
@@ -147,7 +154,7 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc):
         # to people every time someone creates a public fork of Spark.
         merge_message_flags += ["-m", body.replace("@", "")]
 
-    authors = "\n".join(["Author: %s" % a for a in distinct_authors])
+    authors = "\n".join([f"Author: {a}" for a in distinct_authors])
 
     merge_message_flags += ["-m", authors]
 
@@ -159,68 +166,70 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc):
         merge_message_flags += ["-m", message]
 
     # The string "Closes #%s" string is required for GitHub to correctly close the PR
-    merge_message_flags += ["-m", "Closes #%s from %s." % (pr_num, pr_repo_desc)]
+    merge_message_flags += ["-m", f"Closes #{pr_num} from {pr_repo_desc}."]
 
-    run_cmd(['git', 'commit', '--author="%s"' % primary_author] + merge_message_flags)
+    run_cmd(
+        ['git', 'commit', f'--author="{primary_author}"'] + merge_message_flags
+    )
 
-    continue_maybe("Merge complete (local ref %s). Push to %s?" % (
-        target_branch_name, PUSH_REMOTE_NAME))
+    continue_maybe(
+        f"Merge complete (local ref {target_branch_name}). Push to {PUSH_REMOTE_NAME}?"
+    )
 
     try:
-        run_cmd('git push %s %s:%s' % (PUSH_REMOTE_NAME, target_branch_name, target_ref))
+        run_cmd(f'git push {PUSH_REMOTE_NAME} {target_branch_name}:{target_ref}')
     except Exception as e:
         clean_up()
-        fail("Exception while pushing: %s" % e)
+        fail(f"Exception while pushing: {e}")
 
-    merge_hash = run_cmd("git rev-parse %s" % target_branch_name)[:8]
+    merge_hash = run_cmd(f"git rev-parse {target_branch_name}")[:8]
     clean_up()
-    print("Pull request #%s merged!" % pr_num)
-    print("Merge hash: %s" % merge_hash)
+    print(f"Pull request #{pr_num} merged!")
+    print(f"Merge hash: {merge_hash}")
     return merge_hash
 
 
 def cherry_pick(pr_num, merge_hash, default_branch):
-    pick_ref = raw_input("Enter a branch name [%s]: " % default_branch)
+    pick_ref = raw_input(f"Enter a branch name [{default_branch}]: ")
     if pick_ref == "":
         pick_ref = default_branch
 
-    pick_branch_name = "%s_PICK_PR_%s_%s" % (BRANCH_PREFIX, pr_num, pick_ref.upper())
+    pick_branch_name = f"{BRANCH_PREFIX}_PICK_PR_{pr_num}_{pick_ref.upper()}"
 
-    run_cmd("git fetch %s %s:%s" % (PUSH_REMOTE_NAME, pick_ref, pick_branch_name))
-    run_cmd("git checkout %s" % pick_branch_name)
+    run_cmd(f"git fetch {PUSH_REMOTE_NAME} {pick_ref}:{pick_branch_name}")
+    run_cmd(f"git checkout {pick_branch_name}")
 
     try:
-        run_cmd("git cherry-pick -sx %s" % merge_hash)
+        run_cmd(f"git cherry-pick -sx {merge_hash}")
     except Exception as e:
         msg = "Error cherry-picking: %s\nWould you like to manually fix-up this merge?" % e
         continue_maybe(msg)
         msg = "Okay, please fix any conflicts and finish the cherry-pick. Finished?"
         continue_maybe(msg)
 
-    continue_maybe("Pick complete (local ref %s). Push to %s?" % (
-        pick_branch_name, PUSH_REMOTE_NAME))
+    continue_maybe(
+        f"Pick complete (local ref {pick_branch_name}). Push to {PUSH_REMOTE_NAME}?"
+    )
 
     try:
-        run_cmd('git push %s %s:%s' % (PUSH_REMOTE_NAME, pick_branch_name, pick_ref))
+        run_cmd(f'git push {PUSH_REMOTE_NAME} {pick_branch_name}:{pick_ref}')
     except Exception as e:
         clean_up()
-        fail("Exception while pushing: %s" % e)
+        fail(f"Exception while pushing: {e}")
 
-    pick_hash = run_cmd("git rev-parse %s" % pick_branch_name)[:8]
+    pick_hash = run_cmd(f"git rev-parse {pick_branch_name}")[:8]
     clean_up()
 
-    print("Pull request #%s picked into %s!" % (pr_num, pick_ref))
-    print("Pick hash: %s" % pick_hash)
+    print(f"Pull request #{pr_num} picked into {pick_ref}!")
+    print(f"Pick hash: {pick_hash}")
     return pick_ref
 
 
 def fix_version_from_branch(branch, versions):
-    # Note: Assumes this is a sorted (newest->oldest) list of un-released versions
     if branch == "master":
         return versions[0]
-    else:
-        branch_ver = branch.replace("branch-", "")
-        return filter(lambda x: x.name.startswith(branch_ver), versions)[-1]
+    branch_ver = branch.replace("branch-", "")
+    return filter(lambda x: x.name.startswith(branch_ver), versions)[-1]
 
 
 def resolve_jira_issue(merge_branches, comment, default_jira_id=""):

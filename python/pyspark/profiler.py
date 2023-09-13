@@ -111,8 +111,7 @@ class Profiler(object):
 
     def show(self, id):
         """ Print the profile stats to stdout, id is the RDD id """
-        stats = self.stats()
-        if stats:
+        if stats := self.stats():
             print("=" * 60)
             print("Profile of RDD<id=%d>" % id)
             print("=" * 60)
@@ -122,8 +121,7 @@ class Profiler(object):
         """ Dump the profile into path, id is the RDD id """
         if not os.path.exists(path):
             os.makedirs(path)
-        stats = self.stats()
-        if stats:
+        if stats := self.stats():
             p = os.path.join(path, "rdd_%d.pstats" % id)
             stats.dump_stats(p)
 

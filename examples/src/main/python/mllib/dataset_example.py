@@ -33,7 +33,7 @@ from pyspark.mllib.stat import Statistics
 
 
 def summarize(dataset):
-    print("schema: %s" % dataset.schema().json())
+    print(f"schema: {dataset.schema().json()}")
     labels = dataset.map(lambda r: r.label)
     print("label average: %f" % labels.mean())
     features = dataset.map(lambda r: r.features)
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     summarize(dataset0)
     tempdir = tempfile.NamedTemporaryFile(delete=False).name
     os.unlink(tempdir)
-    print("Save dataset as a Parquet file to %s." % tempdir)
+    print(f"Save dataset as a Parquet file to {tempdir}.")
     dataset0.saveAsParquetFile(tempdir)
     print("Load it back and summarize it again.")
     dataset1 = sqlContext.parquetFile(tempdir).setName("dataset1").cache()

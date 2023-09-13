@@ -34,10 +34,7 @@ from pyspark.serializers import read_int, write_int
 
 def compute_real_exit_code(exit_code):
     # SystemExit's code can be integer or string, but os._exit only accepts integers
-    if isinstance(exit_code, numbers.Integral):
-        return exit_code
-    else:
-        return 1
+    return exit_code if isinstance(exit_code, numbers.Integral) else 1
 
 
 def worker(sock):

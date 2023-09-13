@@ -280,7 +280,7 @@ class HasOutputCol(Params):
         super(HasOutputCol, self).__init__()
         #: param for output column name.
         self.outputCol = Param(self, "outputCol", "output column name.")
-        self._setDefault(outputCol=self.uid + '__output')
+        self._setDefault(outputCol=f'{self.uid}__output')
 
     def setOutputCol(self, value):
         """

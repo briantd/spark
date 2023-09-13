@@ -31,9 +31,7 @@ __all__ = ['Broker', 'KafkaMessageAndMetadata', 'KafkaUtils', 'OffsetRange',
 
 def utf8_decoder(s):
     """ Decode the unicode as UTF-8 """
-    if s is None:
-        return None
-    return s.decode('utf-8')
+    return None if s is None else s.decode('utf-8')
 
 
 class KafkaUtils(object):
@@ -57,7 +55,7 @@ class KafkaUtils(object):
         :return: A DStream object
         """
         if kafkaParams is None:
-            kafkaParams = dict()
+            kafkaParams = {}
         kafkaParams.update({
             "zookeeper.connect": zkQuorum,
             "group.id": groupId,
@@ -70,7 +68,7 @@ class KafkaUtils(object):
         try:
             # Use KafkaUtilsPythonHelper to access Scala's KafkaUtils (see SPARK-6027)
             helperClass = ssc._jvm.java.lang.Thread.currentThread().getContextClassLoader()\
-                .loadClass("org.apache.spark.streaming.kafka.KafkaUtilsPythonHelper")
+                    .loadClass("org.apache.spark.streaming.kafka.KafkaUtilsPythonHelper")
             helper = helperClass.newInstance()
             jstream = helper.createStream(ssc._jssc, kafkaParams, topics, jlevel)
         except Py4JJavaError as e:
@@ -115,7 +113,7 @@ class KafkaUtils(object):
         :return: A DStream object
         """
         if fromOffsets is None:
-            fromOffsets = dict()
+            fromOffsets = {}
         if not isinstance(topics, list):
             raise TypeError("topics should be list")
         if not isinstance(kafkaParams, dict):
@@ -131,7 +129,7 @@ class KafkaUtils(object):
 
         try:
             helperClass = ssc._jvm.java.lang.Thread.currentThread().getContextClassLoader() \
-                .loadClass("org.apache.spark.streaming.kafka.KafkaUtilsPythonHelper")
+                    .loadClass("org.apache.spark.streaming.kafka.KafkaUtilsPythonHelper")
             helper = helperClass.newInstance()
 
             jfromOffsets = dict([(k._jTopicAndPartition(helper),
@@ -175,7 +173,7 @@ class KafkaUtils(object):
         :return: A RDD object
         """
         if leaders is None:
-            leaders = dict()
+            leaders = {}
         if not isinstance(kafkaParams, dict):
             raise TypeError("kafkaParams should be dict")
         if not isinstance(offsetRanges, list):
@@ -191,7 +189,7 @@ class KafkaUtils(object):
 
         try:
             helperClass = sc._jvm.java.lang.Thread.currentThread().getContextClassLoader() \
-                .loadClass("org.apache.spark.streaming.kafka.KafkaUtilsPythonHelper")
+                    .loadClass("org.apache.spark.streaming.kafka.KafkaUtilsPythonHelper")
             helper = helperClass.newInstance()
             joffsetRanges = [o._jOffsetRange(helper) for o in offsetRanges]
             jleaders = dict([(k._jTopicAndPartition(helper),
@@ -335,7 +333,7 @@ class KafkaRDD(RDD):
         """
         try:
             helperClass = self.ctx._jvm.java.lang.Thread.currentThread().getContextClassLoader() \
-                .loadClass("org.apache.spark.streaming.kafka.KafkaUtilsPythonHelper")
+                    .loadClass("org.apache.spark.streaming.kafka.KafkaUtilsPythonHelper")
             helper = helperClass.newInstance()
             joffsetRanges = helper.offsetRangesOfKafkaRDD(self._jrdd.rdd())
         except Py4JJavaError as e:
@@ -343,9 +341,10 @@ class KafkaRDD(RDD):
                 KafkaUtils._printErrorMsg(self.ctx)
             raise e
 
-        ranges = [OffsetRange(o.topic(), o.partition(), o.fromOffset(), o.untilOffset())
-                  for o in joffsetRanges]
-        return ranges
+        return [
+            OffsetRange(o.topic(), o.partition(), o.fromOffset(), o.untilOffset())
+            for o in joffsetRanges
+        ]
 
 
 class KafkaDStream(DStream):

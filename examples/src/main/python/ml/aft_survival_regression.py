@@ -42,9 +42,9 @@ if __name__ == "__main__":
     model = aft.fit(training)
 
     # Print the coefficients, intercept and scale parameter for AFT survival regression
-    print("Coefficients: " + str(model.coefficients))
-    print("Intercept: " + str(model.intercept))
-    print("Scale: " + str(model.scale))
+    print(f"Coefficients: {str(model.coefficients)}")
+    print(f"Intercept: {str(model.intercept)}")
+    print(f"Scale: {str(model.scale)}")
     model.transform(training).show(truncate=False)
     # $example off$
 

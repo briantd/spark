@@ -54,7 +54,7 @@ else:
 SPARK_EC2_VERSION = "1.6.0"
 SPARK_EC2_DIR = os.path.dirname(os.path.realpath(__file__))
 
-VALID_SPARK_VERSIONS = set([
+VALID_SPARK_VERSIONS = {
     "0.7.3",
     "0.8.0",
     "0.8.1",
@@ -76,7 +76,7 @@ VALID_SPARK_VERSIONS = set([
     "1.5.1",
     "1.5.2",
     "1.6.0",
-])
+}
 
 SPARK_TACHYON_MAP = {
     "1.0.0": "0.4.1",
@@ -123,7 +123,7 @@ def setup_external_libs(libs):
         lib_dir = os.path.join(SPARK_EC2_LIB_DIR, versioned_lib_name)
 
         if not os.path.isdir(lib_dir):
-            tgz_file_path = os.path.join(SPARK_EC2_LIB_DIR, versioned_lib_name + ".tar.gz")
+            tgz_file_path = os.path.join(SPARK_EC2_LIB_DIR, f"{versioned_lib_name}.tar.gz")
             print(" - Downloading {lib}...".format(lib=lib["name"]))
             download_stream = urlopen(
                 "{prefix}/{first_letter}/{lib_name}/{lib_name}-{lib_version}.tar.gz".format(
@@ -337,10 +337,10 @@ def parse_args():
     # Boto config check
     # http://boto.cloudhackers.com/en/latest/boto_config_tut.html
     home_dir = os.getenv('HOME')
-    if home_dir is None or not os.path.isfile(home_dir + '/.boto'):
+    if home_dir is None or not os.path.isfile(f'{home_dir}/.boto'):
         if not os.path.isfile('/etc/boto.cfg'):
             # If there is no boto config, check aws credentials
-            if not os.path.isfile(home_dir + '/.aws/credentials'):
+            if not os.path.isfile(f'{home_dir}/.aws/credentials'):
                 if os.getenv('AWS_ACCESS_KEY_ID') is None:
                     print("ERROR: The environment variable AWS_ACCESS_KEY_ID must be set",
                           file=stderr)
@@ -355,12 +355,10 @@ def parse_args():
 # Get the EC2 security group of the given name, creating it if it doesn't exist
 def get_or_make_group(conn, name, vpc_id):
     groups = conn.get_all_security_groups()
-    group = [g for g in groups if g.name == name]
-    if len(group) > 0:
+    if group := [g for g in groups if g.name == name]:
         return group[0]
-    else:
-        print("Creating security group " + name)
-        return conn.create_security_group(name, "Spark EC2 group", vpc_id)
+    print(f"Creating security group {name}")
+    return conn.create_security_group(name, "Spark EC2 group", vpc_id)
 
 
 def get_validate_spark_version(version, repo):
@@ -369,7 +367,6 @@ def get_validate_spark_version(version, repo):
         if version not in VALID_SPARK_VERSIONS:
             print("Don't know about Spark version: {v}".format(v=version), file=stderr)
             sys.exit(1)
-        return version
     else:
         github_commit_url = "{repo}/commit/{commit_hash}".format(repo=repo, commit_hash=version)
         request = Request(github_commit_url)
@@ -381,7 +378,8 @@ def get_validate_spark_version(version, repo):
                   file=stderr)
             print("Received HTTP response code of {code}.".format(code=e.code), file=stderr)
             sys.exit(1)
-        return version
+
+    return version
 
 
 # Source: http://aws.amazon.com/amazon-linux-ami/instance-type-matrix/
@@ -455,22 +453,25 @@ def get_spark_ami(opts):
         instance_type = EC2_INSTANCE_TYPES[opts.instance_type]
     else:
         instance_type = "pvm"
-        print("Don't recognize %s, assuming type is pvm" % opts.instance_type, file=stderr)
+        print(
+            f"Don't recognize {opts.instance_type}, assuming type is pvm",
+            file=stderr,
+        )
 
     # URL prefix from which to fetch AMI information
     ami_prefix = "{r}/{b}/ami-list".format(
         r=opts.spark_ec2_git_repo.replace("https://github.com", "https://raw.github.com", 1),
         b=opts.spark_ec2_git_branch)
 
-    ami_path = "%s/%s/%s" % (ami_prefix, opts.region, instance_type)
+    ami_path = f"{ami_prefix}/{opts.region}/{instance_type}"
     reader = codecs.getreader("ascii")
     try:
         ami = reader(urlopen(ami_path)).read().strip()
     except:
-        print("Could not resolve AMI at: " + ami_path, file=stderr)
+        print(f"Could not resolve AMI at: {ami_path}", file=stderr)
         sys.exit(1)
 
-    print("Spark AMI: " + ami)
+    print(f"Spark AMI: {ami}")
     return ami
 
 
@@ -493,8 +494,8 @@ def launch_cluster(conn, opts, cluster_name):
             user_data_content = user_data_file.read()
 
     print("Setting up security groups...")
-    master_group = get_or_make_group(conn, cluster_name + "-master", opts.vpc_id)
-    slave_group = get_or_make_group(conn, cluster_name + "-slaves", opts.vpc_id)
+    master_group = get_or_make_group(conn, f"{cluster_name}-master", opts.vpc_id)
+    slave_group = get_or_make_group(conn, f"{cluster_name}-slaves", opts.vpc_id)
     authorized_address = opts.authorized_address
     if master_group.rules == []:  # Group was just now created
         if opts.vpc_id is None:
@@ -562,8 +563,10 @@ def launch_cluster(conn, opts, cluster_name):
     existing_masters, existing_slaves = get_existing_cluster(conn, opts, cluster_name,
                                                              die_on_error=False)
     if existing_slaves or (existing_masters and not opts.use_existing_master):
-        print("ERROR: There are already instances running in group %s or %s" %
-              (master_group.name, slave_group.name), file=stderr)
+        print(
+            f"ERROR: There are already instances running in group {master_group.name} or {slave_group.name}",
+            file=stderr,
+        )
         sys.exit(1)
 
     # Figure out Spark AMI
@@ -581,7 +584,7 @@ def launch_cluster(conn, opts, cluster_name):
     try:
         image = conn.get_all_images(image_ids=[opts.ami])[0]
     except:
-        print("Could not find AMI " + opts.ami, file=stderr)
+        print(f"Could not find AMI {opts.ami}", file=stderr)
         sys.exit(1)
 
     # Create block device mapping so that we can add EBS volumes if asked to.
@@ -601,9 +604,10 @@ def launch_cluster(conn, opts, cluster_name):
             dev = BlockDeviceType()
             dev.ephemeral_name = 'ephemeral%d' % i
             # The first ephemeral drive is /dev/sdb.
-            name = '/dev/sd' + string.ascii_letters[i + 1]
+            name = f'/dev/sd{string.ascii_letters[i + 1]}'
             block_map[name] = dev
 
+    i = 0
     # Launch slaves
     if opts.spot_price is not None:
         # Launch spot instances with the requested price
@@ -611,14 +615,13 @@ def launch_cluster(conn, opts, cluster_name):
               (opts.slaves, opts.spot_price))
         zones = get_zones(conn, opts)
         num_zones = len(zones)
-        i = 0
         my_req_ids = []
         for zone in zones:
             num_slaves_this_zone = get_partition(opts.slaves, num_zones, i)
             slave_reqs = conn.request_spot_instances(
                 price=opts.spot_price,
                 image_id=opts.ami,
-                launch_group="launch-group-%s" % cluster_name,
+                launch_group=f"launch-group-{cluster_name}",
                 placement=zone,
                 count=num_slaves_this_zone,
                 key_name=opts.key_pair,
@@ -628,7 +631,8 @@ def launch_cluster(conn, opts, cluster_name):
                 subnet_id=opts.subnet_id,
                 placement_group=opts.placement_group,
                 user_data=user_data_content,
-                instance_profile_name=opts.instance_profile_name)
+                instance_profile_name=opts.instance_profile_name,
+            )
             my_req_ids += [req.id for req in slave_reqs]
             i += 1
 
@@ -637,13 +641,12 @@ def launch_cluster(conn, opts, cluster_name):
             while True:
                 time.sleep(10)
                 reqs = conn.get_all_spot_instance_requests()
-                id_to_req = {}
-                for r in reqs:
-                    id_to_req[r.id] = r
-                active_instance_ids = []
-                for i in my_req_ids:
-                    if i in id_to_req and id_to_req[i].state == "active":
-                        active_instance_ids.append(id_to_req[i].instance_id)
+                id_to_req = {r.id: r for r in reqs}
+                active_instance_ids = [
+                    id_to_req[i].instance_id
+                    for i in my_req_ids
+                    if i in id_to_req and id_to_req[i].state == "active"
+                ]
                 if len(active_instance_ids) == opts.slaves:
                     print("All %d slaves granted" % opts.slaves)
                     reservations = conn.get_all_reservations(active_instance_ids)
@@ -660,15 +663,13 @@ def launch_cluster(conn, opts, cluster_name):
             # Log a warning if any of these requests actually launched instances:
             (master_nodes, slave_nodes) = get_existing_cluster(
                 conn, opts, cluster_name, die_on_error=False)
-            running = len(master_nodes) + len(slave_nodes)
-            if running:
+            if running := len(master_nodes) + len(slave_nodes):
                 print(("WARNING: %d instances are still running" % running), file=stderr)
             sys.exit(0)
     else:
         # Launch non-spot instances
         zones = get_zones(conn, opts)
         num_zones = len(zones)
-        i = 0
         slave_nodes = []
         for zone in zones:
             num_slaves_this_zone = get_partition(opts.slaves, num_zones, i)
@@ -722,7 +723,7 @@ def launch_cluster(conn, opts, cluster_name):
             instance_profile_name=opts.instance_profile_name)
 
         master_nodes = master_res.instances
-        print("Launched master in %s, regid = %s" % (zone, master_res.id))
+        print(f"Launched master in {zone}, regid = {master_res.id}")
 
     # This wait time corresponds to SPARK-4983
     print("Waiting for AWS to propagate instance metadata...")
@@ -769,8 +770,8 @@ def get_existing_cluster(conn, opts, cluster_name, die_on_error=True):
         instances = itertools.chain.from_iterable(r.instances for r in reservations)
         return [i for i in instances if i.state not in ["shutting-down", "terminated"]]
 
-    master_instances = get_instances([cluster_name + "-master"])
-    slave_instances = get_instances([cluster_name + "-slaves"])
+    master_instances = get_instances([f"{cluster_name}-master"])
+    slave_instances = get_instances([f"{cluster_name}-slaves"])
 
     if any((master_instances, slave_instances)):
         print("Found {m} master{plural_m}, {s} slave{plural_s}.".format(
@@ -835,11 +836,11 @@ def setup_cluster(conn, master_nodes, slave_nodes, opts, deploy_ssh_key):
     print("Deploying files to master...")
     deploy_files(
         conn=conn,
-        root_dir=SPARK_EC2_DIR + "/" + "deploy.generic",
+        root_dir=f"{SPARK_EC2_DIR}/deploy.generic",
         opts=opts,
         master_nodes=master_nodes,
         slave_nodes=slave_nodes,
-        modules=modules
+        modules=modules,
     )
 
     if opts.deploy_root_dir is not None:
@@ -858,10 +859,10 @@ def setup_cluster(conn, master_nodes, slave_nodes, opts, deploy_ssh_key):
 def setup_spark_cluster(master, opts):
     ssh(master, opts, "chmod u+x spark-ec2/setup.sh")
     ssh(master, opts, "spark-ec2/setup.sh")
-    print("Spark standalone cluster started at http://%s:8080" % master)
+    print(f"Spark standalone cluster started at http://{master}:8080")
 
     if opts.ganglia:
-        print("Ganglia started at http://%s:5080/ganglia" % master)
+        print(f"Ganglia started at http://{master}:5080/ganglia")
 
 
 def is_ssh_available(host, opts, print_ssh_output=True):
@@ -869,10 +870,19 @@ def is_ssh_available(host, opts, print_ssh_output=True):
     Check if SSH is available on a host.
     """
     s = subprocess.Popen(
-        ssh_command(opts) + ['-t', '-t', '-o', 'ConnectTimeout=3',
-                             '%s@%s' % (opts.user, host), stringify_command('true')],
+        (
+            ssh_command(opts)
+            + [
+                '-t',
+                '-t',
+                '-o',
+                'ConnectTimeout=3',
+                f'{opts.user}@{host}',
+                stringify_command('true'),
+            ]
+        ),
         stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT  # we pipe stderr through stdout to preserve output order
+        stderr=subprocess.STDOUT,
     )
     cmd_output = s.communicate()[0]  # [1] is stderr, which we redirected to stdout
 
@@ -922,13 +932,13 @@ def wait_for_cluster_state(conn, opts, cluster_instances, cluster_state):
     start_time = datetime.now()
     num_attempts = 0
 
+    max_batch = 100
     while True:
         time.sleep(5 * num_attempts)  # seconds
 
         for i in cluster_instances:
             i.update()
 
-        max_batch = 100
         statuses = []
         for j in xrange(0, len(cluster_instances), max_batch):
             batch = [i.id for i in cluster_instances[j:j + max_batch]]
@@ -940,9 +950,8 @@ def wait_for_cluster_state(conn, opts, cluster_instances, cluster_state):
                all(s.instance_status.status == 'ok' for s in statuses) and \
                is_cluster_ssh_available(cluster_instances, opts):
                 break
-        else:
-            if all(i.state == cluster_state for i in cluster_instances):
-                break
+        elif all(i.state == cluster_state for i in cluster_instances):
+            break
 
         num_attempts += 1
 
@@ -1021,10 +1030,11 @@ def get_num_disks(instance_type):
     }
     if instance_type in disks_by_instance:
         return disks_by_instance[instance_type]
-    else:
-        print("WARNING: Don't know number of disks on instance type %s; assuming 1"
-              % instance_type, file=stderr)
-        return 1
+    print(
+        f"WARNING: Don't know number of disks on instance type {instance_type}; assuming 1",
+        file=stderr,
+    )
+    return 1
 
 
 # Deploy the configuration file templates in a given local directory to
@@ -1047,7 +1057,7 @@ def deploy_files(conn, root_dir, opts, master_nodes, slave_nodes, modules):
             mapred_local_dirs += ",/mnt%d/hadoop/mrlocal" % i
             spark_local_dirs += ",/mnt%d/spark" % i
 
-    cluster_url = "%s:7077" % active_master
+    cluster_url = f"{active_master}:7077"
 
     if "." in opts.spark_version:
         # Pre-built Spark deploy
@@ -1055,7 +1065,7 @@ def deploy_files(conn, root_dir, opts, master_nodes, slave_nodes, modules):
         tachyon_v = get_tachyon_version(spark_v)
     else:
         # Spark-only custom deploy
-        spark_v = "%s|%s" % (opts.spark_git_repo, opts.spark_version)
+        spark_v = f"{opts.spark_git_repo}|{opts.spark_version}"
         tachyon_v = ""
         print("Deploying Spark via git hash; Tachyon won't be set up")
         modules = filter(lambda x: x != "tachyon", modules)
@@ -1109,10 +1119,12 @@ def deploy_files(conn, root_dir, opts, master_nodes, slave_nodes, modules):
                             dest.close()
     # rsync the whole directory over to the master machine
     command = [
-        'rsync', '-rv',
-        '-e', stringify_command(ssh_command(opts)),
-        "%s/" % tmp_dir,
-        "%s@%s:/" % (opts.user, active_master)
+        'rsync',
+        '-rv',
+        '-e',
+        stringify_command(ssh_command(opts)),
+        f"{tmp_dir}/",
+        f"{opts.user}@{active_master}:/",
     ]
     subprocess.check_call(command)
     # Remove the temp directory we created above
@@ -1128,19 +1140,18 @@ def deploy_files(conn, root_dir, opts, master_nodes, slave_nodes, modules):
 def deploy_user_files(root_dir, opts, master_nodes):
     active_master = get_dns_name(master_nodes[0], opts.private_ips)
     command = [
-        'rsync', '-rv',
-        '-e', stringify_command(ssh_command(opts)),
-        "%s" % root_dir,
-        "%s@%s:/" % (opts.user, active_master)
+        'rsync',
+        '-rv',
+        '-e',
+        stringify_command(ssh_command(opts)),
+        f"{root_dir}",
+        f"{opts.user}@{active_master}:/",
     ]
     subprocess.check_call(command)
 
 
 def stringify_command(parts):
-    if isinstance(parts, str):
-        return parts
-    else:
-        return ' '.join(map(pipes.quote, parts))
+    return parts if isinstance(parts, str) else ' '.join(map(pipes.quote, parts))
 
 
 def ssh_args(opts):
@@ -1162,8 +1173,16 @@ def ssh(host, opts, command):
     while True:
         try:
             return subprocess.check_call(
-                ssh_command(opts) + ['-t', '-t', '%s@%s' % (opts.user, host),
-                                     stringify_command(command)])
+                (
+                    ssh_command(opts)
+                    + [
+                        '-t',
+                        '-t',
+                        f'{opts.user}@{host}',
+                        stringify_command(command),
+                    ]
+                )
+            )
         except subprocess.CalledProcessError as e:
             if tries > 5:
                 # If this was an ssh failure, provide the user with hints.
@@ -1186,8 +1205,7 @@ def _check_output(*popenargs, **kwargs):
         raise ValueError('stdout argument not allowed, it will be overridden.')
     process = subprocess.Popen(stdout=subprocess.PIPE, *popenargs, **kwargs)
     output, unused_err = process.communicate()
-    retcode = process.poll()
-    if retcode:
+    if retcode := process.poll():
         cmd = kwargs.get("args")
         if cmd is None:
             cmd = popenargs[0]
@@ -1197,22 +1215,25 @@ def _check_output(*popenargs, **kwargs):
 
 def ssh_read(host, opts, command):
     return _check_output(
-        ssh_command(opts) + ['%s@%s' % (opts.user, host), stringify_command(command)])
+        ssh_command(opts) + [f'{opts.user}@{host}', stringify_command(command)]
+    )
 
 
 def ssh_write(host, opts, command, arguments):
     tries = 0
     while True:
         proc = subprocess.Popen(
-            ssh_command(opts) + ['%s@%s' % (opts.user, host), stringify_command(command)],
-            stdin=subprocess.PIPE)
+            ssh_command(opts)
+            + [f'{opts.user}@{host}', stringify_command(command)],
+            stdin=subprocess.PIPE,
+        )
         proc.stdin.write(arguments)
         proc.stdin.close()
         status = proc.wait()
         if status == 0:
             break
         elif tries > 5:
-            raise RuntimeError("ssh_write failed with error %s" % proc.returncode)
+            raise RuntimeError(f"ssh_write failed with error {proc.returncode}")
         else:
             print("Error {0} while executing remote command, retrying after 30 seconds".
                   format(status), file=stderr)
@@ -1222,11 +1243,11 @@ def ssh_write(host, opts, command, arguments):
 
 # Gets a list of zones to launch instances in
 def get_zones(conn, opts):
-    if opts.zone == 'all':
-        zones = [z.name for z in conn.get_all_zones()]
-    else:
-        zones = [opts.zone]
-    return zones
+    return (
+        [z.name for z in conn.get_all_zones()]
+        if opts.zone == 'all'
+        else [opts.zone]
+    )
 
 
 # Gets the number of items in a partition
@@ -1239,9 +1260,9 @@ def get_partition(total, num_partitions, current_partitions):
 
 # Gets the IP address, taking into account the --private-ips flag
 def get_ip_address(instance, private_ips=False):
-    ip = instance.ip_address if not private_ips else \
-        instance.private_ip_address
-    return ip
+    return (
+        instance.ip_address if not private_ips else instance.private_ip_address
+    )
 
 
 # Gets the DNS name, taking into account the --private-ips flag

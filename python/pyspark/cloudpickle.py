@@ -80,10 +80,9 @@ def islambda(func):
     return getattr(func,'__name__') == '<lambda>'
 
 
-_BUILTIN_TYPE_NAMES = {}
-for k, v in types.__dict__.items():
-    if type(v) is type:
-        _BUILTIN_TYPE_NAMES[v] = k
+_BUILTIN_TYPE_NAMES = {
+    v: k for k, v in types.__dict__.items() if type(v) is type
+}
 
 
 def _builtin_type(name):
@@ -123,7 +122,7 @@ class CloudPickler(Pickler):
         dispatch[buffer] = save_buffer
 
     def save_unsupported(self, obj):
-        raise pickle.PicklingError("Cannot pickle objects of type %s" % type(obj))
+        raise pickle.PicklingError(f"Cannot pickle objects of type {type(obj)}")
     dispatch[types.GeneratorType] = save_unsupported
 
     # itertools objects do not pickle!
@@ -264,10 +263,8 @@ class CloudPickler(Pickler):
             i += 1
             if op >= HAVE_ARGUMENT:
                 oparg = code[i] + code[i+1] * 256 + extended_arg
-                extended_arg = 0
                 i += 2
-                if op == EXTENDED_ARG:
-                    extended_arg = oparg*65536
+                extended_arg = oparg*65536 if op == EXTENDED_ARG else 0
                 if op in GLOBAL_OPS:
                     out_names.add(names[oparg])
 
@@ -289,12 +286,11 @@ class CloudPickler(Pickler):
         # extract all global ref's
         func_global_refs = self.extract_code_globals(code)
 
-        # process all variables referenced by global environment
-        f_globals = {}
-        for var in func_global_refs:
-            if var in func.__globals__:
-                f_globals[var] = func.__globals__[var]
-
+        f_globals = {
+            var: func.__globals__[var]
+            for var in func_global_refs
+            if var in func.__globals__
+        }
         # defaults requires no processing
         defaults = func.__defaults__
 
@@ -316,7 +312,7 @@ class CloudPickler(Pickler):
     dispatch[types.BuiltinFunctionType] = save_builtin_function
 
     def save_global(self, obj, name=None, pack=struct.pack):
-        if obj.__module__ == "__builtin__" or obj.__module__ == "builtins":
+        if obj.__module__ in ["__builtin__", "builtins"]:
             if obj in _BUILTIN_TYPE_NAMES:
                 return self.save_reduce(_builtin_type, (_BUILTIN_TYPE_NAMES[obj],), obj=obj)
 
@@ -338,45 +334,41 @@ class CloudPickler(Pickler):
             return Pickler.save_global(self, obj, name)
 
         typ = type(obj)
-        if typ is not obj and isinstance(obj, (type, types.ClassType)):
-            d = dict(obj.__dict__)  # copy dict proxy to a dict
-            if not isinstance(d.get('__dict__', None), property):
-                # don't extract dict that are properties
-                d.pop('__dict__', None)
-            d.pop('__weakref__', None)
-
-            # hack as __new__ is stored differently in the __dict__
-            new_override = d.get('__new__', None)
-            if new_override:
-                d['__new__'] = obj.__new__
-
-            # workaround for namedtuple (hijacked by PySpark)
-            if getattr(obj, '_is_namedtuple_', False):
-                self.save_reduce(_load_namedtuple, (obj.__name__, obj._fields))
-                return
-
-            self.save(_load_class)
-            self.save_reduce(typ, (obj.__name__, obj.__bases__, {"__doc__": obj.__doc__}), obj=obj)
-            d.pop('__doc__', None)
-            # handle property and staticmethod
-            dd = {}
-            for k, v in d.items():
-                if isinstance(v, property):
-                    k = ('property', k)
-                    v = (v.fget, v.fset, v.fdel, v.__doc__)
-                elif isinstance(v, staticmethod) and hasattr(v, '__func__'):
-                    k = ('staticmethod', k)
-                    v = v.__func__
-                elif isinstance(v, classmethod) and hasattr(v, '__func__'):
-                    k = ('classmethod', k)
-                    v = v.__func__
-                dd[k] = v
-            self.save(dd)
-            self.write(pickle.TUPLE2)
-            self.write(pickle.REDUCE)
-
-        else:
+        if typ is obj or not isinstance(obj, (type, types.ClassType)):
             raise pickle.PicklingError("Can't pickle %r" % obj)
+        d = dict(obj.__dict__)  # copy dict proxy to a dict
+        if not isinstance(d.get('__dict__', None), property):
+            # don't extract dict that are properties
+            d.pop('__dict__', None)
+        d.pop('__weakref__', None)
+
+        if new_override := d.get('__new__', None):
+            d['__new__'] = obj.__new__
+
+        # workaround for namedtuple (hijacked by PySpark)
+        if getattr(obj, '_is_namedtuple_', False):
+            self.save_reduce(_load_namedtuple, (obj.__name__, obj._fields))
+            return
+
+        self.save(_load_class)
+        self.save_reduce(typ, (obj.__name__, obj.__bases__, {"__doc__": obj.__doc__}), obj=obj)
+        d.pop('__doc__', None)
+        # handle property and staticmethod
+        dd = {}
+        for k, v in d.items():
+            if isinstance(v, property):
+                k = ('property', k)
+                v = (v.fget, v.fset, v.fdel, v.__doc__)
+            elif isinstance(v, staticmethod) and hasattr(v, '__func__'):
+                k = ('staticmethod', k)
+                v = v.__func__
+            elif isinstance(v, classmethod) and hasattr(v, '__func__'):
+                k = ('classmethod', k)
+                v = v.__func__
+            dd[k] = v
+        self.save(dd)
+        self.write(pickle.TUPLE2)
+        self.write(pickle.REDUCE)
 
     dispatch[type] = save_global
     dispatch[types.ClassType] = save_global
@@ -573,7 +565,7 @@ class CloudPickler(Pickler):
         try:
             fsize = os.stat(name).st_size
         except OSError:
-            raise pickle.PicklingError("Cannot pickle file %s as it cannot be stat" % name)
+            raise pickle.PicklingError(f"Cannot pickle file {name} as it cannot be stat")
 
         if obj.closed:
             #create an empty closed string io
@@ -585,17 +577,19 @@ class CloudPickler(Pickler):
                 tmpfile = file(name)
                 tst = tmpfile.read(1)
             except IOError:
-                raise pickle.PicklingError("Cannot pickle file %s as it cannot be read" % name)
+                raise pickle.PicklingError(f"Cannot pickle file {name} as it cannot be read")
             tmpfile.close()
             if tst != '':
-                raise pickle.PicklingError("Cannot pickle file %s as it does not appear to map to a physical, real file" % name)
+                raise pickle.PicklingError(
+                    f"Cannot pickle file {name} as it does not appear to map to a physical, real file"
+                )
         else:
             try:
                 tmpfile = file(name)
                 contents = tmpfile.read()
                 tmpfile.close()
             except IOError:
-                raise pickle.PicklingError("Cannot pickle file %s as it cannot be read" % name)
+                raise pickle.PicklingError(f"Cannot pickle file {name} as it cannot be read")
             retval = pystringIO.StringIO(contents)
             curloc = obj.tell()
             retval.seek(curloc)
@@ -625,8 +619,9 @@ class CloudPickler(Pickler):
             tst_mod = sys.modules.get(tst_mod_name, None)
             if tst_mod and name in tst_mod.__dict__:
                 return self.save_reduce(_getobject, (tst_mod_name, name))
-        raise pickle.PicklingError('cannot save %s. Cannot resolve what module it is defined in'
-                                   % str(obj))
+        raise pickle.PicklingError(
+            f'cannot save {str(obj)}. Cannot resolve what module it is defined in'
+        )
 
     def inject_addons(self):
         """Plug in system. Register additional pickling functions if modules already loaded"""
@@ -714,7 +709,7 @@ def _make_cell(value):
 
 
 def _reconstruct_closure(values):
-    return tuple([_make_cell(v) for v in values])
+    return tuple(_make_cell(v) for v in values)
 
 
 def _make_skel_func(code, closures, base_globals = None):

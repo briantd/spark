@@ -65,20 +65,20 @@ def get_jira_prs():
     has_next_page = True
     page_num = 0
     while has_next_page:
-	page = get_url(GITHUB_API_BASE + "/pulls?page=%s&per_page=100" % page_num)
-	page_json = get_json(page)
+        page = get_url(f"{GITHUB_API_BASE}/pulls?page={page_num}&per_page=100")
+        page_json = get_json(page)
 
-	for pull in page_json:
-	    jiras = re.findall(JIRA_PROJECT_NAME + "-[0-9]{4,5}", pull['title'])
-	    for jira in jiras:
-		result = result + [(jira,  pull)]
+        for pull in page_json:
+            jiras = re.findall(JIRA_PROJECT_NAME + "-[0-9]{4,5}", pull['title'])
+            for jira in jiras:
+        	result = result + [(jira,  pull)]
 
-	# Check if there is another page
-	link_header = filter(lambda k: k.startswith("Link"), page.info().headers)[0]
-	if not "next"in link_header:
-	    has_next_page = False
-	else:
-	    page_num = page_num + 1
+        # Check if there is another page
+        link_header = filter(lambda k: k.startswith("Link"), page.info().headers)[0]
+        if "next" not in link_header:
+            has_next_page = False
+        else:
+            page_num = page_num + 1
     return result
 
 def set_max_pr(max_val):

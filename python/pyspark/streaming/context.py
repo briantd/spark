@@ -297,7 +297,7 @@ class StreamingContext(object):
 
     def _check_serializers(self, rdds):
         # make sure they have same serializer
-        if len(set(rdd._jrdd_deserializer for rdd in rdds)) > 1:
+        if len({rdd._jrdd_deserializer for rdd in rdds}) > 1:
             for i in range(len(rdds)):
                 # reset them to sc.serializer
                 rdds[i] = rdds[i]._reserialize()
@@ -356,9 +356,9 @@ class StreamingContext(object):
             raise ValueError("should have at least one DStream to union")
         if len(dstreams) == 1:
             return dstreams[0]
-        if len(set(s._jrdd_deserializer for s in dstreams)) > 1:
+        if len({s._jrdd_deserializer for s in dstreams}) > 1:
             raise ValueError("All DStreams should have same serializer")
-        if len(set(s._slideDuration for s in dstreams)) > 1:
+        if len({s._slideDuration for s in dstreams}) > 1:
             raise ValueError("All DStreams should have same slide duration")
         first = dstreams[0]
         jrest = [d._jdstream for d in dstreams[1:]]

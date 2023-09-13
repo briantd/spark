@@ -179,7 +179,7 @@ if __name__ == "__main__":
     for name, doc in decisionTreeParams:
         variable = paramTemplate.replace("$name", name).replace("$doc", doc)
         dummyPlaceholders += variable.replace("$owner", "Params._dummy()") + "\n    "
-        realParams += "#: param for " + doc + "\n        "
+        realParams += f"#: param for {doc}" + "\n        "
         realParams += "self." + variable.replace("$owner", "self") + "\n        "
         dtParamMethods += _gen_param_code(name, doc, None) + "\n"
     code.append(decisionTreeCode.replace("$dummyPlaceHolders", dummyPlaceholders)

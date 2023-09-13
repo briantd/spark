@@ -42,11 +42,7 @@ def _create_column_from_name(name):
 
 
 def _to_java_column(col):
-    if isinstance(col, Column):
-        jcol = col._jc
-    else:
-        jcol = _create_column_from_name(col)
-    return jcol
+    return col._jc if isinstance(col, Column) else _create_column_from_name(col)
 
 
 def _to_seq(sc, cols, converter=None):
@@ -267,7 +263,7 @@ class Column(object):
         elif isinstance(startPos, Column):
             jc = self._jc.substr(startPos._jc, length._jc)
         else:
-            raise TypeError("Unexpected type: %s" % type(startPos))
+            raise TypeError(f"Unexpected type: {type(startPos)}")
         return Column(jc)
 
     __getslice__ = substr
@@ -329,9 +325,8 @@ class Column(object):
 
         if len(alias) == 1:
             return Column(getattr(self._jc, "as")(alias[0]))
-        else:
-            sc = SparkContext._active_spark_context
-            return Column(getattr(self._jc, "as")(_to_seq(sc, list(alias))))
+        sc = SparkContext._active_spark_context
+        return Column(getattr(self._jc, "as")(_to_seq(sc, list(alias))))
 
     @ignore_unicode_prefix
     @since(1.3)
@@ -352,7 +347,7 @@ class Column(object):
             jdt = ctx._ssql_ctx.parseDataType(dataType.json())
             jc = self._jc.cast(jdt)
         else:
-            raise TypeError("unexpected type: %s" % type(dataType))
+            raise TypeError(f"unexpected type: {type(dataType)}")
         return Column(jc)
 
     astype = cast
@@ -449,7 +444,7 @@ class Column(object):
     __bool__ = __nonzero__
 
     def __repr__(self):
-        return 'Column<%s>' % self._jc.toString().encode('utf8')
+        return f"Column<{self._jc.toString().encode('utf8')}>"
 
 
 def _test():

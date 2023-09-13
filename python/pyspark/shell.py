@@ -21,6 +21,7 @@ An interactive shell.
 This file is designed to be launched as a PYTHONSTARTUP script.
 """
 
+
 import atexit
 import os
 import platform
@@ -62,15 +63,16 @@ print("""Welcome to
    /__ / .__/\_,_/_/ /_/\_\   version %s
       /_/
 """ % sc.version)
-print("Using Python version %s (%s, %s)" % (
-    platform.python_version(),
-    platform.python_build()[0],
-    platform.python_build()[1]))
-print("SparkContext available as sc, %s available as sqlContext." % sqlContext.__class__.__name__)
+print(
+    f"Using Python version {platform.python_version()} ({platform.python_build()[0]}, {platform.python_build()[1]})"
+)
+print(
+    f"SparkContext available as sc, {sqlContext.__class__.__name__} available as sqlContext."
+)
 
 if add_files is not None:
     print("Warning: ADD_FILES environment variable is deprecated, use --py-files argument instead")
-    print("Adding files: [%s]" % ", ".join(add_files))
+    print(f'Adding files: [{", ".join(add_files)}]')
 
 # The ./bin/pyspark script stores the old PYTHONSTARTUP value in OLD_PYTHONSTARTUP,
 # which allows us to execute the user's PYTHONSTARTUP file:

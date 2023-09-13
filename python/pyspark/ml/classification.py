@@ -140,15 +140,14 @@ class LogisticRegression(JavaEstimator, HasFeaturesCol, HasLabelCol, HasPredicti
         Gets the value of threshold or its default value.
         """
         self._checkThresholdConsistency()
-        if self.isSet(self.thresholds):
-            ts = self.getOrDefault(self.thresholds)
-            if len(ts) != 2:
-                raise ValueError("Logistic Regression getThreshold only applies to" +
-                                 " binary classification, but thresholds has length != 2." +
-                                 "  thresholds: " + ",".join(ts))
-            return 1.0/(1.0 + ts[0]/ts[1])
-        else:
+        if not self.isSet(self.thresholds):
             return self.getOrDefault(self.threshold)
+        ts = self.getOrDefault(self.thresholds)
+        if len(ts) != 2:
+            raise ValueError("Logistic Regression getThreshold only applies to" +
+                             " binary classification, but thresholds has length != 2." +
+                             "  thresholds: " + ",".join(ts))
+        return 1.0/(1.0 + ts[0]/ts[1])
 
     @since("1.5.0")
     def setThresholds(self, value):
@@ -170,11 +169,10 @@ class LogisticRegression(JavaEstimator, HasFeaturesCol, HasLabelCol, HasPredicti
         If neither are set, throw an error.
         """
         self._checkThresholdConsistency()
-        if not self.isSet(self.thresholds) and self.isSet(self.threshold):
-            t = self.getOrDefault(self.threshold)
-            return [1.0-t, t]
-        else:
+        if self.isSet(self.thresholds) or not self.isSet(self.threshold):
             return self.getOrDefault(self.thresholds)
+        t = self.getOrDefault(self.threshold)
+        return [1.0-t, t]
 
     def _checkThresholdConsistency(self):
         if self.isSet(self.threshold) and self.isSet(self.thresholds):

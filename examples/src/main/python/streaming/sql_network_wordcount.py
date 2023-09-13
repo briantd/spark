@@ -58,7 +58,7 @@ if __name__ == "__main__":
 
     # Convert RDDs of the words DStream to DataFrame and run SQL query
     def process(time, rdd):
-        print("========= %s =========" % str(time))
+        print(f"========= {str(time)} =========")
 
         try:
             # Get the singleton instance of SQLContext
@@ -73,7 +73,7 @@ if __name__ == "__main__":
 
             # Do word count on table using SQL and print it
             wordCountsDataFrame = \
-                sqlContext.sql("select word, count(*) as total from words group by word")
+                    sqlContext.sql("select word, count(*) as total from words group by word")
             wordCountsDataFrame.show()
         except:
             pass

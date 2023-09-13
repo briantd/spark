@@ -36,7 +36,7 @@ _broadcastRegistry = {}
 def _from_id(bid):
     from pyspark.broadcast import _broadcastRegistry
     if bid not in _broadcastRegistry:
-        raise Exception("Broadcast variable '%s' not loaded!" % bid)
+        raise Exception(f"Broadcast variable '{bid}' not loaded!")
     return _broadcastRegistry[bid]
 
 

@@ -62,8 +62,9 @@ def _create_window_function(name, doc=''):
         sc = SparkContext._active_spark_context
         jc = getattr(sc._jvm.functions, name)()
         return Column(jc)
+
     _.__name__ = name
-    _.__doc__ = 'Window function: ' + doc
+    _.__doc__ = f'Window function: {doc}'
     return _
 
 
@@ -366,10 +367,7 @@ def rand(seed=None):
     """Generates a random column with i.i.d. samples from U[0.0, 1.0].
     """
     sc = SparkContext._active_spark_context
-    if seed is not None:
-        jc = sc._jvm.functions.rand(seed)
-    else:
-        jc = sc._jvm.functions.rand()
+    jc = sc._jvm.functions.rand() if seed is None else sc._jvm.functions.rand(seed)
     return Column(jc)
 
 
@@ -1569,10 +1567,17 @@ class UserDefinedFunction(object):
         jdt = ctx._ssql_ctx.parseDataType(self.returnType.json())
         if name is None:
             name = f.__name__ if hasattr(f, '__name__') else f.__class__.__name__
-        judf = sc._jvm.UserDefinedPythonFunction(name, bytearray(pickled_command), env, includes,
-                                                 sc.pythonExec, sc.pythonVer, broadcast_vars,
-                                                 sc._javaAccumulator, jdt)
-        return judf
+        return sc._jvm.UserDefinedPythonFunction(
+            name,
+            bytearray(pickled_command),
+            env,
+            includes,
+            sc.pythonExec,
+            sc.pythonVer,
+            broadcast_vars,
+            sc._javaAccumulator,
+            jdt,
+        )
 
     def __del__(self):
         if self._broadcast is not None:

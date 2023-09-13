@@ -18,6 +18,7 @@
 """
 Isotonic Regression Example.
 """
+
 from __future__ import print_function
 
 from pyspark import SparkContext
@@ -34,7 +35,9 @@ if __name__ == "__main__":
     data = sc.textFile("data/mllib/sample_isotonic_regression_data.txt")
 
     # Create label, feature, weight tuples from input data with weight set to default value 1.0.
-    parsedData = data.map(lambda line: tuple([float(x) for x in line.split(',')]) + (1.0,))
+    parsedData = data.map(
+        lambda line: tuple(float(x) for x in line.split(',')) + (1.0,)
+    )
 
     # Split data into training (60%) and test (40%) sets.
     training, test = parsedData.randomSplit([0.6, 0.4], 11)
@@ -48,7 +51,7 @@ if __name__ == "__main__":
 
     # Calculate mean squared error between predicted and real labels.
     meanSquaredError = predictionAndLabel.map(lambda pl: math.pow((pl[0] - pl[1]), 2)).mean()
-    print("Mean Squared Error = " + str(meanSquaredError))
+    print(f"Mean Squared Error = {str(meanSquaredError)}")
 
     # Save and load model
     model.save(sc, "target/tmp/myIsotonicRegressionModel")

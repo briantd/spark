@@ -77,6 +77,6 @@ if __name__ == "__main__":
         for (iK, p) in newPoints:
             kPoints[iK] = p
 
-    print("Final centers: " + str(kPoints))
+    print(f"Final centers: {str(kPoints)}")
 
     sc.stop()

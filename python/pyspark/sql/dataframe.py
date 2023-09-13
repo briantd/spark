@@ -189,8 +189,7 @@ class DataFrame(object):
             try:
                 self._schema = _parse_datatype_json_string(self._jdf.schema().json())
             except AttributeError as e:
-                raise Exception(
-                    "Unable to parse datatype from schema. %s" % e)
+                raise Exception(f"Unable to parse datatype from schema. {e}")
         return self._schema
 
     @since(1.3)
@@ -257,7 +256,7 @@ class DataFrame(object):
         print(self._jdf.showString(n, truncate))
 
     def __repr__(self):
-        return "DataFrame[%s]" % (", ".join("%s: %s" % c for c in self.dtypes))
+        return f'DataFrame[{", ".join("%s: %s" % c for c in self.dtypes)}]'
 
     @since(1.3)
     def count(self):
@@ -472,7 +471,7 @@ class DataFrame(object):
         +---+-----+
         """
         if isinstance(numPartitions, int):
-            if len(cols) == 0:
+            if not cols:
                 return DataFrame(self._jdf.repartition(numPartitions), self.sql_ctx)
             else:
                 return DataFrame(
@@ -499,7 +498,7 @@ class DataFrame(object):
         >>> df.sample(False, 0.5, 42).count()
         2
         """
-        assert fraction >= 0.0, "Negative fraction value: %s" % fraction
+        assert fraction >= 0.0, f"Negative fraction value: {fraction}"
         seed = seed if seed is not None else random.randint(0, sys.maxsize)
         rdd = self._jdf.sample(withReplacement, fraction, long(seed))
         return DataFrame(rdd, self.sql_ctx)
@@ -557,7 +556,7 @@ class DataFrame(object):
         """
         for w in weights:
             if w < 0.0:
-                raise ValueError("Weights must be positive. Found weight value: %s" % w)
+                raise ValueError(f"Weights must be positive. Found weight value: {w}")
         seed = seed if seed is not None else random.randint(0, sys.maxsize)
         rdd_array = self._jdf.randomSplit(_to_list(self.sql_ctx._sc, weights), long(seed))
         return [DataFrame(rdd, self.sql_ctx) for rdd in rdd_array]
@@ -639,10 +638,7 @@ class DataFrame(object):
                 jdf = self._jdf.join(other._jdf, self._jseq(on), how)
         else:
             assert isinstance(on[0], Column), "on should be Column or list of Column"
-            if len(on) > 1:
-                on = reduce(lambda x, y: x.__and__(y), on)
-            else:
-                on = on[0]
+            on = reduce(lambda x, y: x.__and__(y), on) if len(on) > 1 else on[0]
             if how is None:
                 jdf = self._jdf.join(other._jdf, on._jc, "inner")
             else:
@@ -732,7 +728,9 @@ class DataFrame(object):
             jcols = [jc if asc else jc.desc()
                      for asc, jc in zip(ascending, jcols)]
         else:
-            raise TypeError("ascending can only be boolean or list, but got %s" % type(ascending))
+            raise TypeError(
+                f"ascending can only be boolean or list, but got {type(ascending)}"
+            )
         return self._jseq(jcols)
 
     @since("1.3.1")
@@ -825,7 +823,7 @@ class DataFrame(object):
             jc = self._jdf.apply(self.columns[item])
             return Column(jc)
         else:
-            raise TypeError("unexpected item type: %s" % type(item))
+            raise TypeError(f"unexpected item type: {type(item)}")
 
     @since(1.3)
     def __getattr__(self, name):
@@ -836,7 +834,8 @@ class DataFrame(object):
         """
         if name not in self.columns:
             raise AttributeError(
-                "'%s' object has no attribute '%s'" % (self.__class__.__name__, name))
+                f"'{self.__class__.__name__}' object has no attribute '{name}'"
+            )
         jc = self._jdf.apply(name)
         return Column(jc)
 
@@ -1066,7 +1065,7 @@ class DataFrame(object):
         +---+------+-----+
         """
         if how is not None and how not in ['any', 'all']:
-            raise ValueError("how ('" + how + "') should be 'any' or 'all'")
+            raise ValueError(f"how ('{how}') should be 'any' or 'all'")
 
         if subset is None:
             subset = self.columns
@@ -1121,17 +1120,14 @@ class DataFrame(object):
         if isinstance(value, (int, long)):
             value = float(value)
 
-        if isinstance(value, dict):
+        if isinstance(value, dict) or subset is None:
             return DataFrame(self._jdf.na().fill(value), self.sql_ctx)
-        elif subset is None:
-            return DataFrame(self._jdf.na().fill(value), self.sql_ctx)
-        else:
-            if isinstance(subset, basestring):
-                subset = [subset]
-            elif not isinstance(subset, (list, tuple)):
-                raise ValueError("subset should be a list or tuple of column names")
+        if isinstance(subset, basestring):
+            subset = [subset]
+        elif not isinstance(subset, (list, tuple)):
+            raise ValueError("subset should be a list or tuple of column names")
 
-            return DataFrame(self._jdf.na().fill(value, self._jseq(subset)), self.sql_ctx)
+        return DataFrame(self._jdf.na().fill(value, self._jseq(subset)), self.sql_ctx)
 
     @since(1.4)
     def replace(self, to_replace, value, subset=None):
@@ -1180,7 +1176,7 @@ class DataFrame(object):
         if not isinstance(value, (float, int, long, basestring, list, tuple)):
             raise ValueError("value should be a float, int, long, string, list, or tuple")
 
-        rep_dict = dict()
+        rep_dict = {}
 
         if isinstance(to_replace, (float, int, long, basestring)):
             to_replace = [to_replace]
@@ -1228,7 +1224,7 @@ class DataFrame(object):
             raise ValueError("col2 should be a string.")
         if not method:
             method = "pearson"
-        if not method == "pearson":
+        if method != "pearson":
             raise ValueError("Currently only the calculation of the Pearson Correlation " +
                              "coefficient is supported.")
         return self._jdf.stat().corr(col1, col2, method)

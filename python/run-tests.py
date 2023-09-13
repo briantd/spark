@@ -42,7 +42,9 @@ from sparktestsupport.shellutils import which, subprocess_check_output  # noqa
 from sparktestsupport.modules import all_modules  # noqa
 
 
-python_modules = dict((m.name, m) for m in all_modules if m.python_test_goals if m.name != 'root')
+python_modules = {
+    m.name: m for m in all_modules if m.python_test_goals if m.name != 'root'
+}
 
 
 def print_red(text):
@@ -55,8 +57,10 @@ LOGGER = logging.getLogger()
 
 
 def run_individual_python_test(test_name, pyspark_python):
-    env = dict(os.environ)
-    env.update({'SPARK_TESTING': '1', 'PYSPARK_PYTHON': which(pyspark_python)})
+    env = os.environ | {
+        'SPARK_TESTING': '1',
+        'PYSPARK_PYTHON': which(pyspark_python),
+    }
     LOGGER.debug("Starting test(%s): %s", pyspark_python, test_name)
     start_time = time.time()
     try:
@@ -128,7 +132,7 @@ def parse_opts():
 
     (opts, args) = parser.parse_args()
     if args:
-        parser.error("Unsupported arguments: %s" % ' '.join(args))
+        parser.error(f"Unsupported arguments: {' '.join(args)}")
     if opts.parallelism < 1:
         parser.error("Parallelism cannot be less than 1")
     return opts
@@ -136,10 +140,7 @@ def parse_opts():
 
 def main():
     opts = parse_opts()
-    if (opts.verbose):
-        log_level = logging.DEBUG
-    else:
-        log_level = logging.INFO
+    log_level = logging.DEBUG if opts.verbose else logging.INFO
     logging.basicConfig(stream=sys.stdout, level=log_level, format="%(message)s")
     LOGGER.info("Running PySpark tests. Output is in %s", LOG_FILE)
     if os.path.exists(LOG_FILE):
@@ -150,8 +151,9 @@ def main():
         if module_name in python_modules:
             modules_to_test.append(python_modules[module_name])
         else:
-            print("Error: unrecognized module '%s'. Supported modules: %s" %
-                  (module_name, ", ".join(python_modules)))
+            print(
+                f"""Error: unrecognized module '{module_name}'. Supported modules: {", ".join(python_modules)}"""
+            )
             sys.exit(-1)
     LOGGER.info("Will test against the following Python executables: %s", python_execs)
     LOGGER.info("Will test the following Python modules: %s", [x.name for x in modules_to_test])

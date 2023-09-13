@@ -61,14 +61,13 @@ class Evaluator(Params):
         :return: metric
         """
         if params is None:
-            params = dict()
-        if isinstance(params, dict):
-            if params:
-                return self.copy(params)._evaluate(dataset)
-            else:
-                return self._evaluate(dataset)
+            params = {}
+        if not isinstance(params, dict):
+            raise ValueError(f"Params must be a param map but got {type(params)}.")
+        if params:
+            return self.copy(params)._evaluate(dataset)
         else:
-            raise ValueError("Params must be a param map but got %s." % type(params))
+            return self._evaluate(dataset)
 
     @since("1.5.0")
     def isLargerBetter(self):

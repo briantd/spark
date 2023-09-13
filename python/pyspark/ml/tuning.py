@@ -226,7 +226,7 @@ class CrossValidator(Estimator):
         eva = self.getOrDefault(self.evaluator)
         nFolds = self.getOrDefault(self.numFolds)
         h = 1.0 / nFolds
-        randCol = self.uid + "_rand"
+        randCol = f"{self.uid}_rand"
         df = dataset.select("*", rand(0).alias(randCol))
         metrics = np.zeros(numModels)
         for i in range(nFolds):
@@ -241,10 +241,7 @@ class CrossValidator(Estimator):
                 metric = eva.evaluate(model.transform(validation, epm[j]))
                 metrics[j] += metric
 
-        if eva.isLargerBetter():
-            bestIndex = np.argmax(metrics)
-        else:
-            bestIndex = np.argmin(metrics)
+        bestIndex = np.argmax(metrics) if eva.isLargerBetter() else np.argmin(metrics)
         bestModel = est.fit(dataset, epm[bestIndex])
         return CrossValidatorModel(bestModel)
 
@@ -259,7 +256,7 @@ class CrossValidator(Estimator):
         :return: Copy of this instance
         """
         if extra is None:
-            extra = dict()
+            extra = {}
         newCV = Params.copy(self, extra)
         if self.isSet(self.estimator):
             newCV.setEstimator(self.getEstimator().copy(extra))
@@ -296,7 +293,7 @@ class CrossValidatorModel(Model):
         :return: Copy of this instance
         """
         if extra is None:
-            extra = dict()
+            extra = {}
         return CrossValidatorModel(self.bestModel.copy(extra))
 
 

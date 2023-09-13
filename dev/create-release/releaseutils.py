@@ -54,8 +54,8 @@ contributors_file_name = "contributors.txt"
 
 # Prompt the user to answer yes or no until they do so
 def yesOrNoPrompt(msg):
-    response = raw_input("%s [y/n]: " % msg)
-    while response != "y" and response != "n":
+    response = raw_input(f"{msg} [y/n]: ")
+    while response not in ["y", "n"]:
         return yesOrNoPrompt(msg)
     return response == "y"
 
@@ -80,8 +80,8 @@ class Commit:
     def get_title(self): return self.title
     def get_pr_number(self): return self.pr_number
     def __str__(self):
-        closes_pr = "(Closes #%s)" % self.pr_number if self.pr_number else ""
-        return "%s %s %s %s" % (self._hash, self.author, self.title, closes_pr)
+        closes_pr = f"(Closes #{self.pr_number})" if self.pr_number else ""
+        return f"{self._hash} {self.author} {self.title} {closes_pr}"
 
 # Return all commits that belong to the specified tag.
 #
@@ -185,9 +185,8 @@ def translate_issue_type(issue_type, issue_id, warnings):
     issue_type = issue_type.lower()
     if issue_type in known_issue_types:
         return known_issue_types[issue_type]
-    else:
-        warnings.append("Unknown issue type \"%s\" (see %s)" % (issue_type, issue_id))
-        return issue_type
+    warnings.append("Unknown issue type \"%s\" (see %s)" % (issue_type, issue_id))
+    return issue_type
 
 # Translate component names using a format appropriate for writing contributions
 # If an unknown component is encountered, warn the user
@@ -195,9 +194,8 @@ def translate_component(component, commit_hash, warnings):
     component = component.lower()
     if component in known_components:
         return known_components[component]
-    else:
-        warnings.append("Unknown component \"%s\" (see %s)" % (component, commit_hash))
-        return component
+    warnings.append("Unknown component \"%s\" (see %s)" % (component, commit_hash))
+    return component
 
 # Parse components in the commit message
 # The returned components are already filtered and translated
@@ -248,8 +246,7 @@ def get_jira_name(author, jira_client):
 
 # Return whether the given name is in the form <First Name><space><Last Name>
 def is_valid_author(author):
-    if not author: return False
-    return " " in author and not re.findall("[0-9]", author)
+    return " " in author and not re.findall("[0-9]", author) if author else False
 
 # Capitalize the first letter of each word in the given author name
 def capitalize_author(author):

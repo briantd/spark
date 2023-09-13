@@ -170,7 +170,7 @@ class DStream(object):
         def takeAndPrint(time, rdd):
             taken = rdd.take(num + 1)
             print("-------------------------------------------")
-            print("Time: %s" % time)
+            print(f"Time: {time}")
             print("-------------------------------------------")
             for record in taken[:num]:
                 print(record)

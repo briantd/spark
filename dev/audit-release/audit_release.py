@@ -39,9 +39,9 @@ SCALA_VERSION = "2.10.5"
 SCALA_BINARY_VERSION = "2.10"
 
 # Do not set these
-LOG_FILE_NAME = "spark_audit_%s" % time.strftime("%h_%m_%Y_%I_%M_%S")
+LOG_FILE_NAME = f'spark_audit_{time.strftime("%h_%m_%Y_%I_%M_%S")}'
 LOG_FILE = open(LOG_FILE_NAME, 'w')
-WORK_DIR = "/tmp/audit_%s" % int(time.time())
+WORK_DIR = f"/tmp/audit_{int(time.time())}"
 MAVEN_CMD = "mvn"
 GPG_CMD = "gpg"
 SBT_CMD = "sbt -Dsbt.log.noformat=true"
@@ -60,22 +60,22 @@ def log_and_print(msg):
 
 # Prompt the user to delete the scratch directory used
 def clean_work_files():
-    response = raw_input("OK to delete scratch directory '%s'? (y/N) " % WORK_DIR)
+    response = raw_input(f"OK to delete scratch directory '{WORK_DIR}'? (y/N) ")
     if response == "y":
         shutil.rmtree(WORK_DIR)
 
 # Run the given command and log its output to the log file
 def run_cmd(cmd, exit_on_failure=True):
-    log("Running command: %s" % cmd)
+    log(f"Running command: {cmd}")
     ret = subprocess.call(cmd, shell=True, stdout=LOG_FILE, stderr=LOG_FILE)
     if ret != 0 and exit_on_failure:
-        log_and_print("Command failed: %s" % cmd)
+        log_and_print(f"Command failed: {cmd}")
         clean_work_files()
         sys.exit(-1)
     return ret
 
 def run_cmd_with_output(cmd):
-    log_and_print("Running command: %s" % cmd)
+    log_and_print(f"Running command: {cmd}")
     return subprocess.check_output(cmd, shell=True, stderr=LOG_FILE)
 
 # Test if the given condition is successful
@@ -84,11 +84,11 @@ def test(cond, msg):
     return passed(msg) if cond else failed(msg)
 
 def passed(msg):
-    log_and_print("[PASSED] %s" % msg)
+    log_and_print(f"[PASSED] {msg}")
 
 def failed(msg):
     failures.append(msg)
-    log_and_print("[**FAILED**] %s" % msg)
+    log_and_print(f"[**FAILED**] {msg}")
 
 def get_url(url):
     return urllib2.urlopen(url).read()
